@@ -1,0 +1,7 @@
+{
+  "name": "Felcar",
+  "description": "Una aplicación de transporte tipo Uber impulsada por IA que calcula tarifas y rutas dinámicas.",
+  "requestFramePermissions": [
+    "geolocation"
+  ]
+}
