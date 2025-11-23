@@ -1,7 +1,7 @@
 
 import React, { useState } from 'react';
-import { Mail, Lock, User as UserIcon, ArrowRight, Car, ShieldAlert, CreditCard, FileText, Calendar, Palette, ShieldCheck } from 'lucide-react';
-import { User, UserRole, AccountStatus, CarType } from '../types';
+import { Mail, Lock, User as UserIcon, ArrowRight, Car, ShieldAlert, CreditCard, Calendar, Palette, ShieldCheck } from 'lucide-react';
+import { User, UserRole, CarType } from '../types';
 import * as SecurityService from '../services/securityService';
 
 interface AuthScreenProps {
@@ -37,7 +37,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin, onRegister, err
   const [carModel, setCarModel] = useState('');
   const [carYear, setCarYear] = useState('');
   const [plate, setPlate] = useState('');
-  const [insurance, setInsurance] = useState('');
+  // Insurance state removed
   const [carColor, setCarColor] = useState('#FFFFFF');
   const [carType, setCarType] = useState<CarType>(CarType.SEDAN);
 
@@ -63,13 +63,6 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin, onRegister, err
         return;
       }
 
-      // 3. Hash Password before sending
-      // Note: In a real app, you might send raw over SSL and hash on server, 
-      // OR hash client-side to avoid sending plain text. For this demo, we simulate security.
-      // const hashedPassword = await SecurityService.hashPassword(password); 
-      // For demo compatibility with "123" accounts, we will keep plain text for now in the callback,
-      // but the validation logic above ensures NEW users pick strong passwords.
-
       const newUser: Omit<User, 'id' | 'status'> = {
         email: cleanEmail,
         name: cleanName,
@@ -84,7 +77,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin, onRegister, err
           carColor,
           carType,
           licenseNumber: cedula, 
-          insurancePolicy: SecurityService.sanitizeInput(insurance)
+          insurancePolicy: 'N/A' // Default value since field is removed
         } : undefined
       };
       onRegister(newUser, password);
@@ -97,13 +90,12 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin, onRegister, err
     <div className="absolute inset-0 bg-black z-50 flex flex-col items-center justify-center p-6 text-white overflow-y-auto">
       <div className="w-full max-w-md space-y-6 my-auto">
         <div className="text-center">
-          <h1 className="text-4xl font-bold mb-2 tracking-tighter flex items-center justify-center gap-2">
-            <ShieldCheck className="text-blue-500" size={36} /> GeminiRide
+          <h1 className="text-4xl font-bold mb-8 tracking-tighter flex items-center justify-center gap-2">
+            <ShieldCheck className="text-blue-500" size={36} /> FelcarRide
           </h1>
-          <p className="text-gray-400 flex items-center justify-center gap-1">
-            {isRegistering ? 'Registro Seguro (EC)' : 'Panel de Acceso'}
-            <span className="bg-gray-800 text-[10px] px-1 rounded border border-gray-700">SSL</span>
-          </p>
+          {isRegistering && (
+             <p className="text-gray-400 mb-2 font-medium">Registro de Usuario</p>
+          )}
         </div>
 
         <div className="bg-gray-900 p-8 rounded-3xl shadow-2xl border border-gray-800">
@@ -246,18 +238,6 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin, onRegister, err
                          </div>
                        </div>
                      </div>
-
-                     <div className="relative mt-2">
-                        <FileText className="absolute left-3 top-3 text-gray-500" size={18} />
-                        <input
-                          type="text"
-                          placeholder="Nro. Póliza de Seguro"
-                          className="w-full bg-gray-800 border border-gray-700 rounded-xl py-3 pl-10 px-4 focus:outline-none focus:border-white transition text-sm"
-                          value={insurance}
-                          onChange={(e) => setInsurance(e.target.value)}
-                          required
-                        />
-                     </div>
                   </div>
                 )}
               </>
@@ -297,7 +277,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin, onRegister, err
               type="submit"
               className="w-full bg-white text-black font-bold py-3 rounded-xl hover:bg-gray-200 transition flex items-center justify-center gap-2 mt-4"
             >
-              {isRegistering ? 'Validar y Registrar' : 'Ingresar Seguro'} <ArrowRight size={20} />
+              {isRegistering ? 'Validar y Registrar' : 'Ingresar'} <ArrowRight size={20} />
             </button>
           </form>
 
@@ -305,7 +285,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin, onRegister, err
              <p className="text-xs text-gray-500 mb-4">
                {isRegistering 
                  ? "Tus datos serán encriptados y validados por el admin."
-                 : "Acceso cifrado SSL. Tus datos están seguros."}
+                 : "Acceso Seguro"}
              </p>
              <div className="h-px bg-gray-800 w-full mb-4"></div>
             <button 

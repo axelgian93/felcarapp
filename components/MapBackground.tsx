@@ -24,57 +24,43 @@ L.Marker.prototype.options.icon = L.icon({
 const createCarIcon = (type: CarType, color: string, rotation: number = 0) => {
   let svgContent = '';
   
-  // Outline color (darker version of fill or black)
-  const stroke = '#000000'; // subtle border
-  const glassColor = '#334155'; // Dark window tint
-  const headlightColor = '#FEF08A'; // Yellowish light
-  const taillightColor = '#DC2626'; // Red light
-  const size = 44; // Slightly larger for details
+  // Outline color
+  const stroke = '#000000'; 
+  const glassColor = '#1e293b'; // Dark tint
+  const size = 32; // Reduced size as requested (was 44)
 
   // Note: Icons are drawn facing UP (North) in the SVG ViewBox 0 0 64 64.
-  // Center is roughly 32, 32.
   
   switch (type) {
     case CarType.SUV:
-      // Boxier, larger shape with roof rails
+      // Boxier, robust shape
       svgContent = `
         <svg width="${size}" height="${size}" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
           <g>
-            <!-- Drop Shadow -->
             <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
-              <feDropShadow dx="0" dy="2" stdDeviation="2" flood-opacity="0.4"/>
+              <feDropShadow dx="0" dy="1" stdDeviation="1.5" flood-opacity="0.3"/>
             </filter>
             
             <g filter="url(#shadow)">
-              <!-- Chassis Main Body -->
-              <path d="M14 16 C14 10, 50 10, 50 16 V 54 C 50 58, 14 58, 14 54 Z" fill="${color}" stroke="${stroke}" stroke-width="1"/>
+              <!-- Body -->
+              <path d="M12 14 Q32 12 52 14 V 56 Q32 58 12 56 Z" fill="${color}" stroke="${stroke}" stroke-width="2"/>
               
-              <!-- Hood Detail -->
-              <path d="M16 16 L48 16 L46 24 H18 Z" fill="rgba(0,0,0,0.1)"/>
-
-              <!-- Windshield (Front) -->
-              <path d="M16 22 Q32 18 48 22 L46 30 Q32 28 18 30 Z" fill="${glassColor}"/>
+              <!-- Windshield -->
+              <path d="M14 20 H50 L48 28 H16 Z" fill="${glassColor}"/>
               
               <!-- Roof -->
-              <rect x="16" y="30" width="32" height="16" rx="2" fill="${color}"/>
+              <rect x="15" y="28" width="34" height="20" rx="2" fill="${color}"/>
+              
               <!-- Roof Rails -->
-              <rect x="18" y="30" width="2" height="16" fill="rgba(0,0,0,0.2)"/>
-              <rect x="44" y="30" width="2" height="16" fill="rgba(0,0,0,0.2)"/>
+              <path d="M18 28 V 48" stroke="rgba(0,0,0,0.2)" stroke-width="2"/>
+              <path d="M46 28 V 48" stroke="rgba(0,0,0,0.2)" stroke-width="2"/>
 
               <!-- Rear Window -->
-              <path d="M18 46 H46 L44 50 H20 Z" fill="${glassColor}"/>
-
-              <!-- Side Mirrors -->
-              <path d="M14 24 L10 22 L10 26 Z" fill="${color}" stroke="${stroke}" stroke-width="0.5"/>
-              <path d="M50 24 L54 22 L54 26 Z" fill="${color}" stroke="${stroke}" stroke-width="0.5"/>
+              <path d="M18 48 H46 L44 52 H20 Z" fill="${glassColor}"/>
 
               <!-- Headlights -->
-              <path d="M15 10 L22 12 L22 10 Z" fill="${headlightColor}"/>
-              <path d="M49 10 L42 12 L42 10 Z" fill="${headlightColor}"/>
-
-              <!-- Taillights -->
-              <rect x="15" y="56" width="8" height="2" fill="${taillightColor}"/>
-              <rect x="41" y="56" width="8" height="2" fill="${taillightColor}"/>
+              <path d="M13 14 L18 16 V 14 Z" fill="#FEF08A"/>
+              <path d="M51 14 L46 16 V 14 Z" fill="#FEF08A"/>
             </g>
           </g>
         </svg>
@@ -82,37 +68,24 @@ const createCarIcon = (type: CarType, color: string, rotation: number = 0) => {
       break;
 
     case CarType.MOTORCYCLE:
-      // Slim shape, helmet visible
+      // Slim shape
       svgContent = `
         <svg width="${size}" height="${size}" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
           <g filter="url(#shadow)">
-             <!-- Front Wheel -->
-             <rect x="29" y="6" width="6" height="8" rx="2" fill="#1e293b"/>
-             
-             <!-- Body Fairing -->
-             <path d="M26 14 H38 L36 26 H28 Z" fill="${color}" stroke="${stroke}" stroke-width="1"/>
-             
              <!-- Handlebars -->
-             <path d="M20 18 H44" stroke="#94a3b8" stroke-width="3" stroke-linecap="round"/>
-             <circle cx="20" cy="18" r="2" fill="#1e293b"/>
-             <circle cx="44" cy="18" r="2" fill="#1e293b"/>
-
+             <path d="M20 20 H44" stroke="#475569" stroke-width="3" stroke-linecap="round"/>
+             
+             <!-- Body -->
+             <path d="M28 18 H36 V 50 H28 Z" fill="${color}" stroke="${stroke}" stroke-width="2"/>
+             
              <!-- Seat -->
-             <path d="M28 26 H36 V 42 H28 Z" fill="#1e293b"/>
-             
-             <!-- Rear Fender -->
-             <path d="M29 42 H35 V 48 H29 Z" fill="${color}"/>
-             
-             <!-- Rear Wheel -->
-             <rect x="29" y="46" width="6" height="8" rx="2" fill="#1e293b"/>
+             <rect x="28" y="30" width="8" height="10" fill="#1e293b"/>
 
-             <!-- Rider Helmet (Circle) -->
-             <circle cx="32" cy="30" r="6" fill="#fbbf24" stroke="black" stroke-width="1"/>
-             <!-- Rider Shoulders -->
-             <path d="M24 32 Q32 28 40 32" stroke="${color}" stroke-width="4" stroke-linecap="round"/>
+             <!-- Rider Helmet -->
+             <circle cx="32" cy="34" r="5" fill="#FBBF24" stroke="black" stroke-width="1"/>
              
              <!-- Headlight -->
-             <path d="M29 14 Q32 12 35 14" fill="${headlightColor}"/>
+             <path d="M29 18 Q32 16 35 18" fill="#FEF08A"/>
           </g>
         </svg>
       `;
@@ -120,41 +93,30 @@ const createCarIcon = (type: CarType, color: string, rotation: number = 0) => {
 
     case CarType.SEDAN:
     default:
-      // Streamlined, distinct trunk
+      // Streamlined capsule shape
       svgContent = `
         <svg width="${size}" height="${size}" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
            <g>
             <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
-              <feDropShadow dx="0" dy="2" stdDeviation="2" flood-opacity="0.4"/>
+              <feDropShadow dx="0" dy="1" stdDeviation="1.5" flood-opacity="0.3"/>
             </filter>
             
             <g filter="url(#shadow)">
               <!-- Chassis -->
-              <path d="M16 12 Q32 8 48 12 V 52 Q32 56 16 52 Z" fill="${color}" stroke="${stroke}" stroke-width="1"/>
+              <path d="M14 12 Q32 8 50 12 V 54 Q32 58 14 54 Z" fill="${color}" stroke="${stroke}" stroke-width="2"/>
               
-              <!-- Windshield (Front) -->
-              <path d="M18 20 Q32 16 46 20 L44 26 Q32 24 20 26 Z" fill="${glassColor}"/>
+              <!-- Windshield -->
+              <path d="M16 20 Q32 18 48 20 L46 27 Q32 25 18 27 Z" fill="${glassColor}"/>
               
               <!-- Roof -->
-              <path d="M19 26 H45 V 38 H19 Z" fill="${color}" fill-opacity="0.9"/>
+              <path d="M18 27 H46 V 40 H18 Z" fill="${color}" fill-opacity="0.9"/>
               
               <!-- Rear Window -->
-              <path d="M20 38 H44 L42 42 H22 Z" fill="${glassColor}"/>
-              
-              <!-- Side Mirrors -->
-              <path d="M16 22 L12 20 L12 24 Z" fill="${color}" stroke="${stroke}" stroke-width="0.5"/>
-              <path d="M48 22 L52 20 L52 24 Z" fill="${color}" stroke="${stroke}" stroke-width="0.5"/>
+              <path d="M19 40 H45 L43 44 H21 Z" fill="${glassColor}"/>
 
               <!-- Headlights -->
-              <path d="M17 12 L24 14 L24 12 Z" fill="${headlightColor}"/>
-              <path d="M47 12 L40 14 L40 12 Z" fill="${headlightColor}"/>
-
-              <!-- Taillights -->
-              <path d="M17 52 L24 50 L24 52 Z" fill="${taillightColor}"/>
-              <path d="M47 52 L40 50 L40 52 Z" fill="${taillightColor}"/>
-              
-              <!-- Sunroof (Optional Detail) -->
-              <rect x="24" y="28" width="16" height="6" rx="1" fill="rgba(0,0,0,0.2)"/>
+              <path d="M15 12 L20 14 V 12 Z" fill="#FEF08A"/>
+              <path d="M49 12 L44 14 V 12 Z" fill="#FEF08A"/>
             </g>
           </g>
         </svg>

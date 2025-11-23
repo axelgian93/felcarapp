@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { X, DollarSign, Calendar, Clock, TrendingUp, ChevronRight, Star, CreditCard, Banknote, Gift } from 'lucide-react';
 import { DriverAnalytics, TripHistoryItem, PaymentMethod } from '../types';
 
@@ -7,6 +7,7 @@ interface DriverEarningsModalProps {
   isOpen: boolean;
   onClose: () => void;
   tripHistory: TripHistoryItem[]; // Pass full history to filter locally
+  initialTab?: 'EARNINGS' | 'HISTORY' | 'HOURS';
 }
 
 // Mock Analytics Data (Since we don't have a backend)
@@ -32,9 +33,16 @@ const MOCK_ANALYTICS: DriverAnalytics = {
   }
 };
 
-export const DriverEarningsModal: React.FC<DriverEarningsModalProps> = ({ isOpen, onClose, tripHistory }) => {
-  const [activeTab, setActiveTab] = useState<'EARNINGS' | 'HISTORY' | 'HOURS'>('EARNINGS');
+export const DriverEarningsModal: React.FC<DriverEarningsModalProps> = ({ isOpen, onClose, tripHistory, initialTab = 'EARNINGS' }) => {
+  const [activeTab, setActiveTab] = useState<'EARNINGS' | 'HISTORY' | 'HOURS'>(initialTab);
   const [earningsPeriod, setEarningsPeriod] = useState<'today' | 'week' | 'month'>('today');
+
+  // Sync tab when modal opens
+  useEffect(() => {
+    if (isOpen) {
+      setActiveTab(initialTab);
+    }
+  }, [isOpen, initialTab]);
 
   // Must be after hooks
   if (!isOpen) return null;

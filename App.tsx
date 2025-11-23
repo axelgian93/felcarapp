@@ -1,6 +1,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
-import { Navigation, Menu, Star, Clock, CreditCard, Phone, ShieldCheck, X, User as UserIcon, CheckCircle2, MapPin, Search, LogOut, MessageSquare, Bell, History, Package, Calendar, Timer, Car, ChevronRight, Home, Briefcase, Map as MapIcon, Locate, Bus, Power, DollarSign, TrendingUp, Navigation2, Bookmark, Share2, AlertTriangle, Gift, Banknote, FileText, Plus, Shield, Building2, Wand2, FastForward } from 'lucide-react';
+import { Navigation, Menu, Star, Clock, CreditCard, Phone, ShieldCheck, X, User as UserIcon, CheckCircle2, MapPin, Search, LogOut, MessageSquare, Bell, History, Package, Calendar, Timer, Car, ChevronRight, Home, Briefcase, Map as MapIcon, Locate, Bus, Power, DollarSign, TrendingUp, Navigation2, Bookmark, Share2, AlertTriangle, Gift, Banknote, FileText, Plus, Shield, Building2, Wand2, FastForward, Truck, Map, Crosshair } from 'lucide-react';
+import { Geolocation } from '@capacitor/geolocation';
 import { MapBackground } from './components/MapBackground';
 import { AuthScreen } from './components/AuthScreen';
 import { AdminPanel } from './components/AdminPanel';
@@ -181,6 +182,7 @@ export default function App() {
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
   const [isHelpModalOpen, setIsHelpModalOpen] = useState(false);
   const [isEarningsModalOpen, setIsEarningsModalOpen] = useState(false); // Driver Earnings
+  const [driverModalInitialTab, setDriverModalInitialTab] = useState<'EARNINGS' | 'HISTORY' | 'HOURS'>('EARNINGS');
   const [isCancelModalOpen, setIsCancelModalOpen] = useState(false);
 
   // --- Ride App State ---
@@ -228,6 +230,53 @@ export default function App() {
 
   const movementIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
+  // --- GPS INITIALIZATION ---
+  useEffect(() => {
+    const initGPS = async () => {
+       try {
+         const hasPermission = await Geolocation.checkPermissions();
+         
+         if (hasPermission.location !== 'granted') {
+            const request = await Geolocation.requestPermissions();
+            if (request.location !== 'granted') {
+               showNotification("Permiso de ubicación denegado. Usando ubicación por defecto.");
+               return;
+            }
+         }
+
+         const position = await Geolocation.getCurrentPosition({ enableHighAccuracy: true });
+         const newLoc = {
+            lat: position.coords.latitude,
+            lng: position.coords.longitude
+         };
+         
+         setUserLocation(newLoc);
+         setMapCenterCoords(newLoc);
+         // Update pickup if it hasn't been changed manually
+         if (pickupText === 'Ubicación actual') {
+            setPickupLocation(newLoc);
+         }
+         
+       } catch (e) {
+         console.error("Error getting GPS", e);
+         // Fallback to default or browser API if native fails (web dev mode)
+         if (navigator.geolocation) {
+            navigator.geolocation.getCurrentPosition(
+               (pos) => {
+                  const newLoc = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+                  setUserLocation(newLoc);
+                  setMapCenterCoords(newLoc);
+                  if (pickupText === 'Ubicación actual') setPickupLocation(newLoc);
+               },
+               (err) => console.error(err)
+            );
+         }
+       }
+    };
+
+    initGPS();
+  }, []);
+
   // --- Auth Handlers ---
 
   const handleLogin = (email: string, pass: string) => {
@@ -245,6 +294,11 @@ export default function App() {
         return;
       }
       setCurrentUser(user);
+      // Re-trigger GPS on login to ensure accuracy
+      Geolocation.getCurrentPosition().then(pos => {
+         const loc = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+         setUserLocation(loc);
+      }).catch(() => {});
     } else {
       setAuthError("Credenciales incorrectas.");
     }
@@ -332,6 +386,11 @@ export default function App() {
     } else {
       showNotification("Te has desconectado.");
     }
+  };
+
+  const openDriverStats = (tab: 'EARNINGS' | 'HISTORY' | 'HOURS') => {
+     setDriverModalInitialTab(tab);
+     setIsEarningsModalOpen(true);
   };
 
   const handleSimulateRequest = () => {
@@ -440,6 +499,7 @@ export default function App() {
     setUnreadMessages(0);
     setIncomingRequest(null);
     setDriverNote('');
+    setActiveField(null);
   };
 
   // Handle Rider Simulation Button
@@ -550,6 +610,7 @@ export default function App() {
       return;
     }
     setStatus(RideStatus.ESTIMATING);
+    setActiveField(null); // Reset active field
     
     // Use current locations
     const pLat = pickupLocation.lat;
@@ -714,6 +775,7 @@ export default function App() {
         setDestinationText(s.title);
      }
      setShowSuggestions(false);
+     setActiveField(null); // Collapse the sheet
   };
 
   // Handle Picking from Map
@@ -722,6 +784,7 @@ export default function App() {
      setPickingTarget(target);
      setMapCenterCoords(userLocation); // Start at user location
      setShowSuggestions(false);
+     setActiveField(null);
   };
 
   const confirmMapPick = async () => {
@@ -746,6 +809,13 @@ export default function App() {
         setDestinationLocation(loc);
         setDestinationText(address);
      }
+  };
+
+  // Reset Pickup to Current Location
+  const resetPickupToGPS = () => {
+    setPickupLocation(userLocation);
+    setPickupText('Ubicación actual');
+    showNotification("Ubicación restablecida a GPS");
   };
 
   // Save Place Handler
@@ -874,19 +944,6 @@ export default function App() {
         </div>
       </nav>
 
-      {/* PROMO BANNER FOR RIDER */}
-      {currentUser.role === UserRole.RIDER && status === RideStatus.IDLE && (
-         <div className="absolute top-20 left-4 right-4 z-10 pointer-events-none">
-            <div className="bg-gradient-to-r from-indigo-500 to-purple-600 text-white p-4 rounded-2xl shadow-lg flex items-center justify-between pointer-events-auto animate-fade-in">
-               <div>
-                  <p className="font-black text-lg">10% OFF</p>
-                  <p className="text-xs opacity-90">En tu próximo viaje con tarjeta</p>
-               </div>
-               <button className="bg-white text-indigo-600 px-3 py-1 rounded-lg text-xs font-bold">Usar</button>
-            </div>
-         </div>
-      )}
-
       {/* 3. Main Interface Layers */}
 
       {/* --- LAYER: MAP PICKING CONFIRMATION --- */}
@@ -930,9 +987,12 @@ export default function App() {
            </div>
 
            {/* Stats */}
-           <div className="grid grid-cols-3 gap-3 mb-6" onClick={() => setIsEarningsModalOpen(true)}>
+           <div className="grid grid-cols-3 gap-3 mb-6">
               {/* Earnings */}
-              <div className="bg-green-50 border border-green-100 p-4 rounded-2xl flex flex-col items-center justify-center cursor-pointer hover:scale-105 transition">
+              <div 
+                onClick={() => openDriverStats('EARNINGS')}
+                className="bg-green-50 border border-green-100 p-4 rounded-2xl flex flex-col items-center justify-center cursor-pointer hover:scale-105 transition"
+              >
                  <div className="bg-green-100 p-2 rounded-full text-green-600 mb-1">
                     <DollarSign size={20} strokeWidth={2.5} />
                  </div>
@@ -940,7 +1000,10 @@ export default function App() {
                  <p className="font-black text-xl text-green-700">${driverStats.earnings}</p>
               </div>
               {/* Trips */}
-              <div className="bg-blue-50 border border-blue-100 p-4 rounded-2xl flex flex-col items-center justify-center cursor-pointer hover:scale-105 transition">
+              <div 
+                onClick={() => openDriverStats('HISTORY')}
+                className="bg-blue-50 border border-blue-100 p-4 rounded-2xl flex flex-col items-center justify-center cursor-pointer hover:scale-105 transition"
+              >
                  <div className="bg-blue-100 p-2 rounded-full text-blue-600 mb-1">
                     <Car size={20} strokeWidth={2.5} />
                  </div>
@@ -948,7 +1011,10 @@ export default function App() {
                  <p className="font-black text-xl text-blue-700">{driverStats.trips}</p>
               </div>
               {/* Hours */}
-              <div className="bg-orange-50 border border-orange-100 p-4 rounded-2xl flex flex-col items-center justify-center cursor-pointer hover:scale-105 transition">
+              <div 
+                onClick={() => openDriverStats('HOURS')}
+                className="bg-orange-50 border border-orange-100 p-4 rounded-2xl flex flex-col items-center justify-center cursor-pointer hover:scale-105 transition"
+              >
                  <div className="bg-orange-100 p-2 rounded-full text-orange-600 mb-1">
                     <Clock size={20} strokeWidth={2.5} />
                  </div>
@@ -1030,11 +1096,58 @@ export default function App() {
       )}
 
 
-      {/* --- LAYER: RIDER HOME / SEARCH --- */}
+      {/* --- LAYER: RIDER HOME / SEARCH (UPDATED) --- */}
       {currentUser.role === UserRole.RIDER && status === RideStatus.IDLE && !isPickingOnMap && (
-        <div className="absolute bottom-0 w-full bg-white rounded-t-3xl shadow-2xl z-30 animate-slide-up">
+        <div 
+          className={`absolute bottom-0 w-full bg-white shadow-2xl z-30 transition-all duration-300 ease-in-out flex flex-col ${activeField ? 'h-full top-0 rounded-none' : 'rounded-t-3xl'}`}
+        >
           
-          <div className="p-6 space-y-4 pb-10">
+          {/* Search Header (Visible when expanded) */}
+          {activeField && (
+            <div className="pt-12 px-6 pb-2 bg-white flex items-center">
+              <button onClick={() => setActiveField(null)} className="p-2 hover:bg-gray-100 rounded-full">
+                <X size={24} />
+              </button>
+              <h2 className="font-bold text-lg ml-2">Planifica tu viaje</h2>
+            </div>
+          )}
+
+          <div className="p-6 space-y-4 flex-grow overflow-y-auto">
+            
+            {/* Service Grid (Only visible when NOT expanded) */}
+            {!activeField && (
+               <div className="grid grid-cols-4 gap-2 mb-4">
+                  <button 
+                    onClick={() => setSelectedServiceType(ServiceType.RIDE)}
+                    className={`flex flex-col items-center gap-1 p-2 rounded-xl transition ${selectedServiceType === ServiceType.RIDE ? 'bg-black text-white' : 'bg-gray-50 text-gray-600'}`}
+                  >
+                     <Car size={24} />
+                     <span className="text-[10px] font-bold">Viaje</span>
+                  </button>
+                  <button 
+                    onClick={() => setSelectedServiceType(ServiceType.DELIVERY)}
+                    className={`flex flex-col items-center gap-1 p-2 rounded-xl transition ${selectedServiceType === ServiceType.DELIVERY ? 'bg-black text-white' : 'bg-gray-50 text-gray-600'}`}
+                  >
+                     <Package size={24} />
+                     <span className="text-[10px] font-bold">Envío</span>
+                  </button>
+                  <button 
+                    onClick={() => setSelectedServiceType(ServiceType.TRIP)}
+                    className={`flex flex-col items-center gap-1 p-2 rounded-xl transition ${selectedServiceType === ServiceType.TRIP ? 'bg-black text-white' : 'bg-gray-50 text-gray-600'}`}
+                  >
+                     <Map size={24} />
+                     <span className="text-[10px] font-bold">Ciudad</span>
+                  </button>
+                  <button 
+                    onClick={() => setIsSchedulingOpen(true)}
+                    className="flex flex-col items-center gap-1 p-2 rounded-xl bg-gray-50 text-gray-600 hover:bg-gray-100"
+                  >
+                     <Calendar size={24} />
+                     <span className="text-[10px] font-bold">Agendar</span>
+                  </button>
+               </div>
+            )}
+
              {/* Simulation Helper Button */}
              <div className="flex justify-end mb-2">
                <button 
@@ -1058,11 +1171,11 @@ export default function App() {
                     value={pickupText}
                     onFocus={() => { setActiveField('PICKUP'); handleAddressType(pickupText, true); }} 
                     onChange={(e) => handleAddressType(e.target.value, true)}
-                    onBlur={() => setTimeout(() => setShowSuggestions(false), 200)} 
+                    // Removed onBlur timeout here as we handle closing via X button or selection
                   />
-                  {pickupText && (
-                    <button onClick={() => { setPickupText(''); setPickupLocation(DEFAULT_LOCATION); }} className="p-1 text-gray-400"><X size={14} /></button>
-                  )}
+                  <button onClick={resetPickupToGPS} className="p-1.5 bg-white rounded-full shadow-sm hover:bg-gray-50 text-blue-600 ml-2" title="Usar mi ubicación GPS">
+                     <Locate size={16} />
+                  </button>
                </div>
                
                {/* Destination */}
@@ -1071,16 +1184,18 @@ export default function App() {
                   <input 
                     type="text" 
                     className="bg-transparent w-full text-lg font-bold placeholder:text-gray-400 focus:outline-none"
-                    placeholder="¿A dónde vamos?"
+                    placeholder={selectedServiceType === ServiceType.TRIP ? "¿A qué ciudad vas?" : selectedServiceType === ServiceType.DELIVERY ? "¿Dónde entregamos?" : "¿A dónde vamos?"}
                     value={destinationText}
                     onFocus={() => { setActiveField('DESTINATION'); if(destinationText) handleAddressType(destinationText, false); }} 
                     onChange={(e) => handleAddressType(e.target.value, false)}
-                    onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
                   />
+                  {destinationText && (
+                    <button onClick={() => { setDestinationText(''); setDestinationLocation(null); }} className="p-1 text-gray-400"><X size={16} /></button>
+                  )}
                </div>
 
-               {/* Saved Quick Access */}
-               {!destinationText && (
+               {/* Saved Quick Access (Hidden if actively searching) */}
+               {!activeField && !destinationText && (
                  <div className="flex gap-3 overflow-x-auto pt-2 scrollbar-hide">
                     <button onClick={() => { if(currentUser.savedPlaces?.home) handlePlaceSelect(currentUser.savedPlaces.home, 'DESTINATION'); }} className="bg-gray-50 px-4 py-2 rounded-full flex items-center gap-2 text-sm font-bold text-gray-600 hover:bg-gray-100 border border-gray-100 whitespace-nowrap">
                        <Home size={16}/> Casa
@@ -1094,32 +1209,32 @@ export default function App() {
                  </div>
                )}
 
-               {/* Dropdown Suggestions - Changed to relative so it expands the sheet */}
+               {/* Dropdown Suggestions - Now part of the flow */}
                {showSuggestions && suggestions.length > 0 && (
-                 <div className="relative bg-white rounded-xl shadow-sm border border-gray-100 mt-2 max-h-60 overflow-y-auto z-50">
+                 <div className="relative bg-white mt-4 pb-20 z-50">
                     <button 
                       onMouseDown={() => enableMapPicking(activeField || 'DESTINATION')}
-                      className="w-full text-left px-4 py-3 flex items-center gap-3 hover:bg-gray-50 border-b border-gray-50"
+                      className="w-full text-left px-4 py-4 flex items-center gap-4 hover:bg-gray-50 border-b border-gray-50"
                     >
-                       <div className="bg-gray-100 p-2 rounded-full"><MapPin size={16} /></div>
-                       <span className="font-bold text-sm text-blue-600">Fijar ubicación en el mapa</span>
+                       <div className="bg-gray-100 p-3 rounded-full"><MapPin size={20} /></div>
+                       <span className="font-bold text-base text-blue-600">Fijar ubicación en el mapa</span>
                     </button>
 
                     {suggestions.map((s) => (
                        <button 
                          key={s.id}
                          onMouseDown={() => selectSuggestion(s)} 
-                         className="w-full text-left px-4 py-3 flex items-center gap-3 hover:bg-gray-50 border-b border-gray-50 last:border-0"
+                         className="w-full text-left px-4 py-4 flex items-center gap-4 hover:bg-gray-50 border-b border-gray-50 last:border-0"
                        >
-                          <div className={`p-2 rounded-full ${s.type === 'HISTORY' ? 'bg-orange-50 text-orange-500' : s.type === 'SAVED' ? 'bg-blue-50 text-blue-500' : 'bg-gray-100 text-gray-500'}`}>
-                             {s.type === 'HISTORY' ? <History size={16} /> : s.type === 'SAVED' ? <Star size={16} /> : <MapPin size={16} />}
+                          <div className={`p-3 rounded-full ${s.type === 'HISTORY' ? 'bg-orange-50 text-orange-500' : s.type === 'SAVED' ? 'bg-blue-50 text-blue-500' : 'bg-gray-100 text-gray-500'}`}>
+                             {s.type === 'HISTORY' ? <History size={20} /> : s.type === 'SAVED' ? <Star size={20} /> : <MapPin size={20} />}
                           </div>
                           <div className="flex-grow">
-                             <p className="font-bold text-sm text-gray-900">{s.title}</p>
-                             <p className="text-xs text-gray-500 line-clamp-1">{s.subtitle}</p>
+                             <p className="font-bold text-base text-gray-900">{s.title}</p>
+                             <p className="text-sm text-gray-500 line-clamp-1">{s.subtitle}</p>
                           </div>
                           {s.distance && (
-                             <span className="text-[10px] bg-gray-100 px-2 py-1 rounded text-gray-500 font-mono">
+                             <span className="text-xs bg-gray-100 px-2 py-1 rounded text-gray-500 font-mono">
                                 {s.distance.toFixed(1)} km
                              </span>
                           )}
@@ -1129,22 +1244,18 @@ export default function App() {
                )}
             </div>
 
-            {/* Actions */}
-            <div className="flex gap-3 pt-2">
-              <button 
-                 onClick={() => setIsSchedulingOpen(true)}
-                 className="flex-1 bg-gray-100 hover:bg-gray-200 text-black font-bold py-3 rounded-xl flex items-center justify-center gap-2 transition"
-              >
-                 <Calendar size={18} /> Agendar
-              </button>
-              <button 
-                onClick={handleSearchRide}
-                disabled={!destinationLocation}
-                className="flex-[2] bg-black text-white font-bold py-3 rounded-xl hover:scale-[1.02] transition disabled:opacity-50 disabled:hover:scale-100 shadow-xl"
-              >
-                Buscar {selectedServiceType === ServiceType.DELIVERY ? 'Envío' : 'Viaje'}
-              </button>
-            </div>
+            {/* Actions (Only visible when not searching/expanding) */}
+            {!activeField && (
+              <div className="flex gap-3 pt-4 border-t border-gray-50 mt-4">
+                <button 
+                  onClick={handleSearchRide}
+                  disabled={!destinationLocation}
+                  className="w-full bg-black text-white font-bold py-4 rounded-xl hover:scale-[1.02] transition disabled:opacity-50 disabled:hover:scale-100 shadow-xl flex items-center justify-center gap-2"
+                >
+                  <Search size={20} /> Buscar {selectedServiceType === ServiceType.DELIVERY ? 'Envío' : selectedServiceType === ServiceType.TRIP ? 'Viaje' : 'Carrera'}
+                </button>
+              </div>
+            )}
           </div>
         </div>
       )}
@@ -1409,6 +1520,13 @@ export default function App() {
         user={currentUser}
         onLogout={handleLogout}
         onOpenHistory={() => { setIsProfileOpen(false); setIsHistoryOpen(true); }}
+        onOpenPayments={() => { setIsProfileOpen(false); setIsPaymentModalOpen(true); }}
+        onOpenSavedPlaces={() => { setIsProfileOpen(false); setIsPlacesModalOpen(true); }}
+        onOpenHelp={() => { setIsProfileOpen(false); setIsHelpModalOpen(true); }}
+        onOpenPromotions={() => { 
+          setIsProfileOpen(false); 
+          showNotification("No tienes promociones activas por el momento.");
+        }}
       />
 
       <SavedPlacesModal
@@ -1434,6 +1552,7 @@ export default function App() {
          isOpen={isEarningsModalOpen}
          onClose={() => setIsEarningsModalOpen(false)}
          tripHistory={tripHistory}
+         initialTab={driverModalInitialTab}
       />
 
       {/* Cancellation Modal */}
