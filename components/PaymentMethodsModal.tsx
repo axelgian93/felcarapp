@@ -1,7 +1,10 @@
 
-import React, { useState } from 'react';
-import { X, CreditCard, Wallet, Banknote, Plus, Trash2, Gift, Building2 } from 'lucide-react';
-import { User, PaymentMethod } from '../types';
+
+
+import React, { useState, useEffect } from 'react';
+import { X, CreditCard, Wallet, Banknote, Plus, Trash2, Gift, Building2, Briefcase } from 'lucide-react';
+import { User, PaymentMethod, Company } from '../types';
+import { CompanyService } from '../src/services/companyService';
 
 interface PaymentMethodsModalProps {
   isOpen: boolean;
@@ -12,24 +15,56 @@ interface PaymentMethodsModalProps {
 
 export const PaymentMethodsModal: React.FC<PaymentMethodsModalProps> = ({ isOpen, onClose, user, onSelectMethod }) => {
   const [promoCode, setPromoCode] = useState('');
+  const [userCompany, setUserCompany] = useState<Company | null>(null);
+
+  useEffect(() => {
+     const fetchCompany = async () => {
+        if (user.companyId) {
+           const comp = await CompanyService.getCompanyById(user.companyId);
+           setUserCompany(comp);
+        }
+     };
+     fetchCompany();
+  }, [user]);
 
   if (!isOpen) return null;
 
   return (
     <div className="absolute inset-0 z-[70] bg-black/60 backdrop-blur-sm flex items-end md:items-center justify-center p-4 animate-fade-in">
-      <div className="bg-white w-full max-w-md rounded-t-3xl md:rounded-3xl shadow-2xl overflow-hidden animate-slide-up">
+      <div className="bg-white w-full max-w-md rounded-t-3xl md:rounded-3xl shadow-2xl overflow-hidden animate-slide-up flex flex-col max-h-[90vh]">
         
-        <div className="p-5 border-b border-gray-100 flex justify-between items-center">
+        {/* Header Updated to Black */}
+        <div className="p-5 border-b border-gray-100 flex justify-between items-center bg-black text-white flex-shrink-0">
           <h2 className="text-xl font-bold flex items-center gap-2">
-             <Wallet className="text-black" /> Métodos de Pago
+             <Wallet className="text-white" /> Métodos de Pago
           </h2>
-          <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-full transition">
-            <X size={24} />
+          <button onClick={onClose} className="p-2 hover:bg-white/20 rounded-full transition">
+            <X size={24} className="text-white" />
           </button>
         </div>
 
-        <div className="p-6 space-y-6 max-h-[60vh] overflow-y-auto">
+        <div className="p-6 space-y-6 overflow-y-auto flex-grow bg-white">
           
+          {/* CORPORATE OPTION (If User has companyId) */}
+          {userCompany && (
+             <button 
+               onClick={() => { onSelectMethod(PaymentMethod.CORPORATE); onClose(); }}
+               className="w-full flex items-center justify-between p-4 rounded-2xl border-2 border-black hover:bg-gray-50 transition group shadow-md"
+             >
+               <div className="flex items-center gap-4">
+                  <div className="p-3 bg-black text-white rounded-xl">
+                     <Briefcase size={24} />
+                  </div>
+                  <div className="text-left">
+                     <h3 className="font-bold text-gray-900">Crédito Corporativo</h3>
+                     <p className="text-xs text-gray-500 font-bold">{userCompany.name}</p>
+                     <p className="text-[10px] text-green-600 font-bold mt-1">Saldo Disp: ${(userCompany.creditLimit - userCompany.usedCredit).toFixed(2)}</p>
+                  </div>
+               </div>
+               <div className="w-5 h-5 rounded-full border-2 border-gray-300 group-hover:border-black group-hover:bg-black"></div>
+             </button>
+          )}
+
           {/* Cash Option */}
           <button 
             onClick={() => { onSelectMethod(PaymentMethod.CASH); onClose(); }}
@@ -111,8 +146,18 @@ export const PaymentMethodsModal: React.FC<PaymentMethodsModalProps> = ({ isOpen
                 <button className="bg-black text-white px-4 py-2 rounded-xl font-bold text-sm">Aplicar</button>
              </div>
           </div>
-
         </div>
+
+        {/* Footer Close Button */}
+        <div className="p-4 border-t border-gray-100 bg-gray-50 flex-shrink-0">
+           <button 
+             onClick={onClose}
+             className="w-full bg-white border border-gray-200 text-gray-900 font-bold py-3 rounded-xl hover:bg-gray-100 transition shadow-sm"
+           >
+             Cerrar
+           </button>
+        </div>
+
       </div>
     </div>
   );

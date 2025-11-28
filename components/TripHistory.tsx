@@ -1,6 +1,6 @@
 
-import React, { useState, useMemo } from 'react';
-import { X, Calendar, MapPin, Clock, ArrowRight, Wallet, TrendingUp, AlertCircle, CreditCard, Banknote, Car, Building2 } from 'lucide-react';
+import React, { useState, useMemo, useEffect } from 'react';
+import { X, Calendar, MapPin, Clock, ArrowRight, Wallet, TrendingUp, AlertCircle, CreditCard, Banknote, Car, Building2, ArrowLeft } from 'lucide-react';
 import { TripHistoryItem, UserRole, PaymentMethod } from '../types';
 
 interface TripHistoryProps {
@@ -8,10 +8,26 @@ interface TripHistoryProps {
   onClose: () => void;
   history: TripHistoryItem[];
   userRole: UserRole;
+  onBack?: () => void;
+  initialTab?: 'LIST' | 'EXPENSES'; // Added prop
 }
 
-export const TripHistory: React.FC<TripHistoryProps> = ({ isOpen, onClose, history, userRole }) => {
+export const TripHistory: React.FC<TripHistoryProps> = ({ 
+  isOpen, 
+  onClose, 
+  history, 
+  userRole, 
+  onBack,
+  initialTab = 'LIST'
+}) => {
   const [activeTab, setActiveTab] = useState<'LIST' | 'EXPENSES'>('LIST');
+
+  // Sync tab when modal opens
+  useEffect(() => {
+    if (isOpen) {
+      setActiveTab(initialTab);
+    }
+  }, [isOpen, initialTab]);
 
   // --- ANALYTICS LOGIC (For Riders) ---
   const expensesStats = useMemo(() => {
@@ -108,9 +124,9 @@ export const TripHistory: React.FC<TripHistoryProps> = ({ isOpen, onClose, histo
   const renderList = () => (
     <div className="flex-grow overflow-y-auto p-4 bg-gray-50 space-y-4">
       {history.length === 0 ? (
-          <div className="flex flex-col items-center justify-center h-64 text-gray-400 text-center">
-            <Calendar size={48} className="mb-4 opacity-20"/>
-            <p>No tienes viajes registrados aún.</p>
+          <div className="flex flex-col items-center justify-center h-64 text-center">
+            <Calendar size={48} className="mb-4 text-gray-300"/>
+            <p className="text-black font-bold">No tienes viajes registrados aún.</p>
           </div>
       ) : (
         [...history].sort((a,b) => b.date - a.date).map((trip) => (
@@ -132,7 +148,7 @@ export const TripHistory: React.FC<TripHistoryProps> = ({ isOpen, onClose, histo
                 <img src={trip.counterpartPhoto || "https://ui-avatars.com/api/?background=random"} className="w-8 h-8 rounded-full bg-gray-200 object-cover" alt="Avatar"/>
                 <div className="flex-grow">
                     <p className="font-bold text-sm text-gray-900">{trip.counterpartName}</p>
-                    <p className="text-[10px] text-gray-500 uppercase">{userRole === UserRole.RIDER ? 'Tu Conductor' : 'Pasajero'}</p>
+                    <p className="text-xs text-gray-500 uppercase">{userRole === UserRole.RIDER ? 'Tu Conductor' : 'Pasajero'}</p>
                 </div>
                 {userRole === UserRole.RIDER && (
                   <div className="bg-white p-1.5 rounded border border-gray-200">
@@ -180,12 +196,14 @@ export const TripHistory: React.FC<TripHistoryProps> = ({ isOpen, onClose, histo
         
         {/* Header */}
         <div className="p-5 bg-white z-10 border-b border-gray-100 flex justify-between items-center">
-          <h2 className="text-xl font-bold flex items-center gap-2">
-             <Clock size={20} /> Historial
-          </h2>
-          <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-full transition">
-            <X size={24} />
-          </button>
+          <div className="flex items-center gap-3">
+             <button onClick={onBack || onClose} className="p-2 hover:bg-gray-100 rounded-full transition">
+                <ArrowLeft size={20} className="text-black" />
+             </button>
+             <h2 className="text-xl font-bold flex items-center gap-2">
+                <Clock size={20} /> Historial
+             </h2>
+          </div>
         </div>
 
         {/* Tabs (Only for Riders) */}

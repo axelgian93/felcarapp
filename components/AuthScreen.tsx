@@ -1,17 +1,17 @@
 
 import React, { useState } from 'react';
-import { Mail, Lock, User as UserIcon, ArrowRight, Car, ShieldAlert, CreditCard, Calendar, Palette, ShieldCheck } from 'lucide-react';
+import { Mail, Lock, User as UserIcon, ArrowRight, Car, ShieldAlert, CreditCard, Calendar, Palette, ShieldCheck, Eye, EyeOff, QrCode, CheckCircle } from 'lucide-react';
 import { User, UserRole, CarType } from '../types';
 import * as SecurityService from '../services/securityService';
 
 interface AuthScreenProps {
   onLogin: (email: string, password: string) => void;
-  onRegister: (user: Omit<User, 'id' | 'status'>, password: string) => void;
+  onRegister: (user: Omit<User, 'id' | 'status'>, password: string, coopCode: string) => void;
   error?: string | null;
+  successMessage?: string | null;
   onClearError?: () => void;
 }
 
-// Common car colors for quick selection
 const CAR_COLORS = [
   { name: 'Blanco', hex: '#FFFFFF', border: true },
   { name: 'Negro', hex: '#1F2937', border: false },
@@ -21,10 +21,11 @@ const CAR_COLORS = [
   { name: 'Amarillo', hex: '#FBBF24', border: false },
 ];
 
-export const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin, onRegister, error, onClearError }) => {
+export const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin, onRegister, error, successMessage, onClearError }) => {
   const [isRegistering, setIsRegistering] = useState(false);
   const [selectedRole, setSelectedRole] = useState<UserRole>(UserRole.RIDER);
   const [localError, setLocalError] = useState<string | null>(null);
+  const [showPassword, setShowPassword] = useState(false);
   
   // Form State
   const [email, setEmail] = useState('');
@@ -32,37 +33,35 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin, onRegister, err
   const [name, setName] = useState('');
   const [cedula, setCedula] = useState('');
   const [phone, setPhone] = useState('');
+  const [coopCode, setCoopCode] = useState(''); // New field for Tenant Code
   
   // Driver specific
   const [carModel, setCarModel] = useState('');
   const [carYear, setCarYear] = useState('');
   const [plate, setPlate] = useState('');
-  // Insurance state removed
   const [carColor, setCarColor] = useState('#FFFFFF');
   const [carType, setCarType] = useState<CarType>(CarType.SEDAN);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLocalError(null);
+    if (onClearError) onClearError();
     
-    // Sanitization
     const cleanEmail = SecurityService.sanitizeInput(email).toLowerCase();
     const cleanName = SecurityService.sanitizeInput(name);
     
     if (isRegistering) {
-      // 1. Validate Cedula
       if (!SecurityService.validateEcuadorianCedula(cedula)) {
         setLocalError("La Cédula ingresada no es válida en Ecuador.");
         return;
       }
 
-      // 2. Validate Password Strength
       const passCheck = SecurityService.validatePasswordStrength(password);
       if (!passCheck.valid) {
         setLocalError(`Contraseña insegura: ${passCheck.message}`);
         return;
       }
-
+      
       const newUser: Omit<User, 'id' | 'status'> = {
         email: cleanEmail,
         name: cleanName,
@@ -77,10 +76,11 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin, onRegister, err
           carColor,
           carType,
           licenseNumber: cedula, 
-          insurancePolicy: 'N/A' // Default value since field is removed
+          insurancePolicy: 'N/A'
         } : undefined
       };
-      onRegister(newUser, password);
+      
+      onRegister(newUser, password, coopCode);
     } else {
       onLogin(cleanEmail, password);
     }
@@ -100,7 +100,6 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin, onRegister, err
 
         <div className="bg-gray-900 p-8 rounded-3xl shadow-2xl border border-gray-800">
           
-          {/* Role Selector for Registration */}
           {isRegistering && (
             <div className="flex bg-gray-800 p-1 rounded-xl mb-6">
               <button 
@@ -126,10 +125,32 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin, onRegister, err
               {error || localError}
             </div>
           )}
+
+          {successMessage && (
+            <div className="bg-green-500/10 border border-green-500/50 text-green-400 px-4 py-3 rounded-xl mb-4 text-sm flex items-center gap-2 animate-fade-in">
+              <CheckCircle size={16} />
+              {successMessage}
+            </div>
+          )}
           
           <form onSubmit={handleSubmit} className="space-y-4">
             {isRegistering && (
               <>
+                {/* COOPERATIVE QR CODE FIELD - OPTIONAL */}
+                {selectedRole === UserRole.RIDER && (
+                    <div className="relative animate-fade-in">
+                       <QrCode className="absolute left-4 top-3.5 text-yellow-500" size={20} />
+                       <input
+                         type="text"
+                         placeholder="Cód. Cooperativa (Opcional)"
+                         className="w-full bg-gray-800 border-2 border-yellow-500/30 rounded-xl py-3 pl-12 pr-4 focus:outline-none focus:border-yellow-500 transition text-sm font-bold tracking-widest uppercase"
+                         value={coopCode}
+                         onChange={(e) => setCoopCode(e.target.value.toUpperCase())}
+                       />
+                       {/* Helper text removed as requested */}
+                    </div>
+                )}
+
                 <div className="grid grid-cols-2 gap-4">
                   <div className="relative">
                     <UserIcon className="absolute left-4 top-3.5 text-gray-500" size={20} />
@@ -146,7 +167,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin, onRegister, err
                     <CreditCard className="absolute left-4 top-3.5 text-gray-500" size={20} />
                     <input
                       type="text"
-                      placeholder="Cédula (10 dígitos)"
+                      placeholder="Cédula"
                       className="w-full bg-gray-800 border border-gray-700 rounded-xl py-3 pl-12 pr-4 focus:outline-none focus:border-white transition text-sm"
                       value={cedula}
                       onChange={(e) => {
@@ -173,10 +194,9 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin, onRegister, err
                   <div className="bg-gray-800/50 p-4 rounded-xl border border-gray-700 space-y-3 animate-fade-in">
                      <p className="text-xs text-gray-400 font-bold uppercase mb-2">Datos del Vehículo</p>
                      
-                     {/* Tipo de Carro */}
                      <div className="flex gap-2 mb-2">
-                       <button type="button" onClick={() => setCarType(CarType.SEDAN)} className={`flex-1 py-2 rounded border text-xs font-bold ${carType === CarType.SEDAN ? 'bg-white text-black border-white' : 'bg-transparent border-gray-600 text-gray-400'}`}>Sedan / Hatch</button>
-                       <button type="button" onClick={() => setCarType(CarType.SUV)} className={`flex-1 py-2 rounded border text-xs font-bold ${carType === CarType.SUV ? 'bg-white text-black border-white' : 'bg-transparent border-gray-600 text-gray-400'}`}>SUV / 4x4</button>
+                       <button type="button" onClick={() => setCarType(CarType.SEDAN)} className={`flex-1 py-2 rounded border text-xs font-bold ${carType === CarType.SEDAN ? 'bg-white text-black border-white' : 'bg-transparent border-gray-600 text-gray-400'}`}>Sedan</button>
+                       <button type="button" onClick={() => setCarType(CarType.SUV)} className={`flex-1 py-2 rounded border text-xs font-bold ${carType === CarType.SUV ? 'bg-white text-black border-white' : 'bg-transparent border-gray-600 text-gray-400'}`}>SUV</button>
                      </div>
 
                      <div className="grid grid-cols-2 gap-3">
@@ -184,7 +204,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin, onRegister, err
                            <Car className="absolute left-3 top-3 text-gray-500" size={18} />
                            <input
                              type="text"
-                             placeholder="Modelo (Ej: Kia Rio)"
+                             placeholder="Modelo"
                              className="w-full bg-gray-800 border border-gray-700 rounded-xl py-3 pl-10 px-4 focus:outline-none focus:border-white transition text-sm"
                              value={carModel}
                              onChange={(e) => setCarModel(e.target.value)}
@@ -206,7 +226,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin, onRegister, err
                         </div>
                         <input
                           type="text"
-                          placeholder="Placa (GBA-1234)"
+                          placeholder="Placa"
                           className="w-full bg-gray-800 border border-gray-700 rounded-xl py-3 px-4 focus:outline-none focus:border-white transition text-sm uppercase"
                           value={plate}
                           onChange={(e) => setPlate(e.target.value)}
@@ -214,9 +234,8 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin, onRegister, err
                         />
                      </div>
 
-                     {/* Color Selector */}
                      <div>
-                       <label className="text-[10px] text-gray-400 font-bold uppercase mb-1 block">Color del Vehículo</label>
+                       <label className="text-[10px] text-gray-400 font-bold uppercase mb-1 block">Color</label>
                        <div className="flex gap-2 justify-between">
                          {CAR_COLORS.map((c) => (
                            <button
@@ -225,7 +244,6 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin, onRegister, err
                              onClick={() => setCarColor(c.hex)}
                              className={`w-8 h-8 rounded-full transition-transform ${c.border ? 'border border-gray-400' : ''} ${carColor === c.hex ? 'ring-2 ring-white scale-110' : 'opacity-70 hover:opacity-100'}`}
                              style={{ backgroundColor: c.hex }}
-                             title={c.name}
                            />
                          ))}
                          <div className="relative w-8 h-8 overflow-hidden rounded-full bg-gradient-to-br from-red-500 via-green-500 to-blue-500">
@@ -258,21 +276,22 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin, onRegister, err
             <div className="relative">
               <Lock className="absolute left-4 top-3.5 text-gray-500" size={20} />
               <input
-                type="password"
+                type={showPassword ? "text" : "password"}
                 placeholder="Contraseña"
-                className="w-full bg-gray-800 border border-gray-700 rounded-xl py-3 pl-12 pr-4 focus:outline-none focus:border-white transition"
+                className="w-full bg-gray-800 border border-gray-700 rounded-xl py-3 pl-12 pr-12 focus:outline-none focus:border-white transition"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
               />
+              <button 
+                type="button" 
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute right-4 top-3.5 text-gray-500 hover:text-white transition"
+              >
+                {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+              </button>
             </div>
             
-            {isRegistering && (
-               <p className="text-[10px] text-gray-500 px-2">
-                  La contraseña debe tener 8+ caracteres, una mayúscula y un número.
-               </p>
-            )}
-
             <button
               type="submit"
               className="w-full bg-white text-black font-bold py-3 rounded-xl hover:bg-gray-200 transition flex items-center justify-center gap-2 mt-4"
@@ -284,7 +303,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin, onRegister, err
           <div className="mt-6 text-center">
              <p className="text-xs text-gray-500 mb-4">
                {isRegistering 
-                 ? "Tus datos serán encriptados y validados por el admin."
+                 ? "Tus datos serán validados por tu cooperativa."
                  : "Acceso Seguro"}
              </p>
              <div className="h-px bg-gray-800 w-full mb-4"></div>
@@ -292,7 +311,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin, onRegister, err
               onClick={() => { setIsRegistering(!isRegistering); if (onClearError) onClearError(); setLocalError(null); }}
               className="text-blue-400 hover:text-blue-300 text-sm font-medium"
             >
-              {isRegistering ? '¿Ya tienes cuenta aprobada? Inicia sesión' : '¿Nuevo usuario? Regístrate aquí'}
+              {isRegistering ? '¿Ya tienes cuenta? Inicia sesión' : '¿Nuevo usuario? Regístrate aquí'}
             </button>
           </div>
         </div>

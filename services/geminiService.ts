@@ -1,8 +1,18 @@
+
 import { GoogleGenAI, Type, Schema } from "@google/genai";
 import { RideOption, ServiceType } from "../types";
 
-// Initialize Gemini Client
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+// Lazy Initialize Gemini Client
+let ai: GoogleGenAI | null = null;
+
+const getAI = () => {
+  if (!ai) {
+    // Safe fallback string to prevent crash, though calls will fail if key is invalid
+    const apiKey = process.env.API_KEY || ''; 
+    ai = new GoogleGenAI({ apiKey });
+  }
+  return ai;
+};
 
 export const getRideEstimates = async (
   origin: string,
@@ -49,7 +59,8 @@ export const getRideEstimates = async (
   }
 
   try {
-    const response = await ai.models.generateContent({
+    const client = getAI();
+    const response = await client.models.generateContent({
       model: "gemini-2.5-flash",
       contents: `User location: ${currentLat}, ${currentLng} (approx ${origin}). 
       Destination: "${destination}". 
@@ -90,7 +101,8 @@ export const getRideEstimates = async (
 
 export const getDestinationCoordinates = async (destination: string, nearbyLat: number, nearbyLng: number): Promise<{lat: number, lng: number} | null> => {
    try {
-     const response = await ai.models.generateContent({
+     const client = getAI();
+     const response = await client.models.generateContent({
        model: "gemini-2.5-flash",
        contents: `I am at ${nearbyLat}, ${nearbyLng} (Guayaquil, EC). The user wants to go to "${destination}". 
        Generate a JSON object with 'lat' and 'lng'. Return coordinates in Guayaquil.`,
