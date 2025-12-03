@@ -134,13 +134,21 @@ export const AuthService = {
                return await AuthService.register(profileData, pass, ''); 
             } catch (regError: any) {
                console.error("Auto-seed failed:", regError);
-               // Pass through existing user error
+               
+               // DEBUGGING: Return clearer errors for APK testing
+               if (regError.code === 'auth/email-already-in-use') {
+                  throw new Error(`El usuario ${email} ya existe pero la contraseña es incorrecta. Bórralo en Firebase Auth o usa la contraseña antigua.`);
+               }
+               if (regError.code === 'auth/network-request-failed') {
+                  throw new Error("Error de conexión. Verifica tu internet o las restricciones de la API Key en Google Cloud (Android vs Web).");
+               }
+               if (regError.code === 'auth/weak-password') {
+                  throw new Error("Error crítico: La contraseña del usuario de prueba es muy débil.");
+               }
+
+               // Pass through existing user error if it was just a wrong password attempt originally
                if (regError.message && regError.message.includes("ya está registrado")) {
                   throw mapAuthError(error); 
-               }
-               // Warn about weak passwords in console if that's the cause
-               if (regError.code === 'auth/weak-password') {
-                  console.error("CRITICAL: Mock user password is too weak for Firebase (needs 6+ chars). Update src/mockData.ts");
                }
             }
          }
@@ -262,8 +270,9 @@ const mapAuthError = (error: any): Error => {
   if (code === 'auth/wrong-password') msg = "Contraseña incorrecta.";
   if (code === 'auth/email-already-in-use') msg = "Este correo ya está registrado.";
   if (code === 'auth/weak-password') msg = "La contraseña es muy débil (mínimo 6 caracteres).";
-  if (code === 'auth/invalid-credential') msg = "Credenciales incorrectas. Si eres usuario nuevo, regístrate primero.";
-  if (code === 'permission-denied') msg = "Error de permisos. Contacta soporte.";
+  if (code === 'auth/invalid-credential') msg = "Credenciales incorrectas. Verifique correo/contraseña.";
+  if (code === 'permission-denied') msg = "Error de permisos (Firestore).";
+  if (code === 'auth/network-request-failed') msg = "Sin conexión a internet o API Key bloqueada.";
   if (code === 'auth/requires-recent-login') msg = "Sesión expirada. Inicia sesión nuevamente para continuar.";
   return new Error(msg);
 };

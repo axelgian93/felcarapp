@@ -50,7 +50,9 @@ const translateType = (type: string): string => {
         'bus_station': 'Terminal',
         'aerodrome': 'Aeropuerto',
         'park': 'Parque',
-        'residential': 'Residencial'
+        'residential': 'Residencial',
+        'cinema': 'Cine',
+        'bank': 'Banco'
     };
     return dict[type] || '';
 };
@@ -67,7 +69,7 @@ export const MapService = {
     // 2. If specific search fails (e.g. "Mall del Norte" might fail with strict viewbox),
     // try a broader search appending city name explicitly and relaxing bounds.
     if (results.length === 0 && !query.toLowerCase().includes('guayaquil')) {
-        console.log("Retrying with broad search...");
+        // console.log("Retrying with broad search...");
         results = await fetchNominatim(`${query} Guayaquil`, false);
     }
 
@@ -153,12 +155,15 @@ function processResults(data: NominatimResult[]): Location[] {
         // 3. Deduplication
         const normName = title.toLowerCase().trim();
         let isDuplicate = false;
+        
         if (seenNames.has(normName)) {
-            // Check spatial duplicate
+            // Check spatial duplicate (same location)
             const existing = uniqueResults.find(r => r.address?.toLowerCase().trim() === normName);
             if (existing) {
                 const d = getDistanceKm(lat, lng, existing.lat, existing.lng);
-                if (d < 1.0) isDuplicate = true; 
+                // If it's very close (< 500m), it's a duplicate node/way from OSM.
+                // If it's far, it might be a different branch (e.g. McDonald's Centro vs McDonald's Norte)
+                if (d < 0.5) isDuplicate = true; 
             }
         }
 
@@ -172,7 +177,7 @@ function processResults(data: NominatimResult[]): Location[] {
         }
     });
 
-    // 4. Sort by Importance
+    // 4. Sort by Importance (Promote Malls/Commercial areas)
     uniqueResults.sort((a: any, b: any) => b._importance - a._importance);
 
     return uniqueResults.slice(0, 5);
