@@ -1,7 +1,5 @@
-
-
 import React, { useState, useEffect } from 'react';
-import { X, DollarSign, Calendar, Clock, TrendingUp, ChevronRight, Star, CreditCard, Banknote, Gift, List, Timer } from 'lucide-react';
+import { X, DollarSign, Clock, TrendingUp, Star, CreditCard, Banknote, Gift, List } from 'lucide-react';
 import { DriverAnalytics, TripHistoryItem, PaymentMethod } from '../types';
 
 interface DriverEarningsModalProps {

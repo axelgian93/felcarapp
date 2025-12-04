@@ -12,11 +12,7 @@ import {
   doc, 
   setDoc, 
   getDoc, 
-  Timestamp,
-  collection,
-  query,
-  where,
-  getDocs
+  Timestamp
 } from "firebase/firestore";
 import { User, UserRole, AccountStatus } from "../../types";
 // Import mock data to seed DB if profile missing
@@ -74,6 +70,23 @@ const mapDocToUser = (id: string, data: any): User => {
 
 export const AuthService = {
   
+  getUserProfile: async (uid: string, fbUser?: FirebaseUser): Promise<User | null> => {
+    try {
+      const userDocRef = doc(db, "users", uid);
+      const userDoc = await getDoc(userDocRef);
+
+      if (userDoc.exists()) {
+        return mapDocToUser(uid, userDoc.data());
+      } else if (fbUser) {
+        return await AuthService.createProfileFromFallback(fbUser);
+      }
+      return null;
+    } catch (error) {
+      console.error("Error fetching user profile:", error);
+      return null;
+    }
+  },
+
   createProfileFromFallback: async (fbUser: FirebaseUser): Promise<User> => {
     console.warn(`Creating missing profile for ${fbUser.email}...`);
     
@@ -105,6 +118,33 @@ export const AuthService = {
 
     const cleanProfile = cleanFirestoreData(newProfile);
     await setDoc(doc(db, "users", fbUser.uid), cleanProfile);
+    return mapDocToUser(fbUser.uid, cleanProfile);
+  },
+
+  register: async (userData: Omit<User, 'id' | 'status'>, pass: string, coopCode: string): Promise<User> => {
+    // 1. Create Auth User
+    const userCredential = await createUserWithEmailAndPassword(auth, userData.email, pass);
+    const fbUser = userCredential.user;
+
+    // 2. Determine Cooperative ID based on code (if provided)
+    let targetCoopId = 'coop-global';
+    if (coopCode) {
+         const coop = INITIAL_COOPERATIVES.find(c => c.code === coopCode);
+         if (coop) targetCoopId = coop.id;
+    }
+
+    // 3. Create Profile in Firestore
+    const newProfile = {
+      ...userData,
+      status: AccountStatus.PENDING,
+      cooperativeId: targetCoopId,
+      createdAt: Timestamp.now(),
+      rating: 5.0
+    };
+
+    const cleanProfile = cleanFirestoreData(newProfile);
+    await setDoc(doc(db, "users", fbUser.uid), cleanProfile);
+    
     return mapDocToUser(fbUser.uid, cleanProfile);
   },
 
@@ -147,71 +187,11 @@ export const AuthService = {
                }
 
                // Pass through existing user error if it was just a wrong password attempt originally
-               if (regError.message && regError.message.includes("ya está registrado")) {
-                  throw mapAuthError(error); 
-               }
+               throw error;
             }
          }
       }
-
-      console.error("Login Error:", error);
-      throw mapAuthError(error);
-    }
-  },
-
-  register: async (userData: Omit<User, 'id' | 'status'>, pass: string, coopCode: string): Promise<User> => {
-    let fbUser: FirebaseUser | null = null;
-    
-    // Default to 'coop-global' if not provided
-    // Preserve existing cooperativeId if passed (e.g. from Mock Data seeding)
-    let assignedCooperativeId: string = userData.cooperativeId || 'coop-global'; 
-
-    // Validate Cooperative Code (QR Simulation) if provided
-    if (userData.role === UserRole.RIDER || userData.role === UserRole.ADMIN) {
-       if (coopCode && coopCode.trim() !== '') {
-           const coopMatch = INITIAL_COOPERATIVES.find(c => c.code.toUpperCase() === coopCode.toUpperCase());
-           if (coopMatch) {
-              assignedCooperativeId = coopMatch.id;
-           } else {
-              throw new Error("Código de Cooperativa inválido. Déjelo vacío para usar el servicio Global.");
-           }
-       } 
-       // If coopCode is empty, we keep 'coop-global' (or whatever was in userData)
-    }
-    
-    try {
-      const userCredential = await createUserWithEmailAndPassword(auth, userData.email, pass);
-      fbUser = userCredential.user;
-
-      const newUserId = fbUser.uid;
-      const newUserProfile = {
-        ...userData,
-        status: AccountStatus.PENDING,
-        cooperativeId: assignedCooperativeId, // Bind user to tenant or global
-        createdAt: Timestamp.now(),
-        rating: 5.0,
-        totalTrips: 0
-      };
-
-      const cleanProfile = cleanFirestoreData(newUserProfile);
-      await setDoc(doc(db, "users", newUserId), cleanProfile);
-
-      return {
-        id: newUserId,
-        status: AccountStatus.PENDING,
-        cooperativeId: assignedCooperativeId,
-        ...userData
-      };
-    } catch (error: any) {
-      console.error("Register Error:", error);
-      if (fbUser) {
-         try {
-           await deleteUser(fbUser);
-         } catch (deleteErr) {
-           console.error("Failed to rollback user creation", deleteErr);
-         }
-      }
-      throw mapAuthError(error);
+      throw error;
     }
   },
 
@@ -219,60 +199,12 @@ export const AuthService = {
     await signOut(auth);
   },
 
-  getUserProfile: async (uid: string, fallbackUser?: FirebaseUser): Promise<User | null> => {
-    try {
-      const userDocRef = doc(db, "users", uid);
-      const userDoc = await getDoc(userDocRef);
-      
-      if (userDoc.exists()) {
-        return mapDocToUser(uid, userDoc.data());
-      } else if (fallbackUser) {
-         return await AuthService.createProfileFromFallback(fallbackUser);
-      }
-      return null;
-    } catch (e) {
-      console.error("Error fetching user profile:", e);
-      if (fallbackUser) {
-        try {
-           return await AuthService.createProfileFromFallback(fallbackUser);
-        } catch (recoveryError) {
-           console.error("Recovery failed:", recoveryError);
-        }
-      }
-      throw e;
-    }
-  },
-
-  updateUserPassword: async (newPassword: string): Promise<void> => {
+  updateUserPassword: async (newPass: string) => {
     const user = auth.currentUser;
     if (user) {
-      try {
-        await updatePassword(user, newPassword);
-      } catch (error: any) {
-        console.error("Error updating password", error);
-        if (error.code === 'auth/requires-recent-login') {
-          throw new Error("Por seguridad, debes cerrar sesión e ingresar nuevamente antes de cambiar la contraseña.");
-        }
-        throw mapAuthError(error);
-      }
+      await updatePassword(user, newPass);
     } else {
-      throw new Error("No hay usuario autenticado.");
+      throw new Error("No user logged in");
     }
   }
-};
-
-const mapAuthError = (error: any): Error => {
-  const code = error.code;
-  let msg = "Error desconocido.";
-  if (code === 'auth/invalid-email') msg = "El correo no es válido.";
-  if (code === 'auth/user-disabled') msg = "Usuario deshabilitado.";
-  if (code === 'auth/user-not-found') msg = "Usuario no registrado.";
-  if (code === 'auth/wrong-password') msg = "Contraseña incorrecta.";
-  if (code === 'auth/email-already-in-use') msg = "Este correo ya está registrado.";
-  if (code === 'auth/weak-password') msg = "La contraseña es muy débil (mínimo 6 caracteres).";
-  if (code === 'auth/invalid-credential') msg = "Credenciales incorrectas. Verifique correo/contraseña.";
-  if (code === 'permission-denied') msg = "Error de permisos (Firestore).";
-  if (code === 'auth/network-request-failed') msg = "Sin conexión a internet o API Key bloqueada.";
-  if (code === 'auth/requires-recent-login') msg = "Sesión expirada. Inicia sesión nuevamente para continuar.";
-  return new Error(msg);
 };

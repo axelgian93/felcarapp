@@ -1,7 +1,5 @@
-
-
 import React, { useState, useEffect } from 'react';
-import { X, Home, Briefcase, MapPin, ArrowUpCircle, ArrowRightCircle, Plus, Star, Navigation, Map } from 'lucide-react';
+import { X, Home, Briefcase, MapPin, ArrowUpCircle, ArrowRightCircle, Plus, Star, Map } from 'lucide-react';
 import { User, Location, SavedPlace } from '../types';
 import { UserService } from '../src/services/userService';
 

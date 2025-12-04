@@ -1,6 +1,5 @@
-
 import React, { useEffect, useState } from 'react';
-import { X, Calendar, MapPin, Clock, Trash2, FileText, Car, Package, Map, Info, AlertTriangle } from 'lucide-react';
+import { X, Calendar, Trash2, FileText, Car, Package, Map, Info, AlertTriangle } from 'lucide-react';
 import { ScheduledRide, User, ServiceType } from '../types';
 import { TripService } from '../src/services/tripService';
 

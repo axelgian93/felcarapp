@@ -1,5 +1,4 @@
-
-import React, { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { 
   Map as MapIcon, MapPin, Home, Briefcase, Heart, Bell, Menu, Sun, Moon, 
   DollarSign, Clock, History, Power, Car, X, Calendar, Locate, Search, 
@@ -13,7 +12,6 @@ import { ProfileMenu } from './components/ProfileMenu';
 import { TripHistory } from './components/TripHistory';
 import { SavedPlacesModal } from './components/SavedPlacesModal';
 import { PaymentMethodsModal } from './components/PaymentMethodsModal';
-import { ChatWindow } from './components/ChatWindow';
 import { ChangePasswordModal } from './components/ChangePasswordModal';
 import { ScheduledRidesModal } from './components/ScheduledRidesModal';
 import { DriverEarningsModal } from './components/DriverEarningsModal';
@@ -32,7 +30,7 @@ import { getRideEstimates } from './services/geminiService';
 
 import { 
   User, UserRole, RideStatus, Location, Driver, RideOption, ServiceType, 
-  CarType, TripHistoryItem, ScheduledRide, Cooperative, Company, AccountStatus, PaymentMethod 
+  TripHistoryItem, Cooperative, Company, AccountStatus, PaymentMethod 
 } from './types';
 import { onAuthStateChanged } from 'firebase/auth';
 import { auth } from './src/firebaseConfig';
@@ -78,7 +76,7 @@ export default function App() {
   
   // Driver specific
   const [isDriverOnline, setIsDriverOnline] = useState(false);
-  const [onlineDuration, setOnlineDuration] = useState('00:00');
+  const [onlineDuration] = useState('00:00'); // setOnlineDuration unused
   const [driverOtpInput, setDriverOtpInput] = useState('');
   const [showOtpInput, setShowOtpInput] = useState(false);
   const [driverEarningsTab, setDriverEarningsTab] = useState<'EARNINGS' | 'HISTORY' | 'HOURS'>('EARNINGS');
@@ -262,6 +260,11 @@ export default function App() {
          } as Driver));
        setAvailableDrivers(drivers);
     });
+    // Trip history sub removed as setter was unused in original code or handled locally.
+    // If we want global trip history we need to use it.
+    // Re-enabling for consistency if logic requires it, but setter was marked unused.
+    // For now, ignoring setTripHistory as per user error log.
+    
     return () => { coopUnsub(); usersUnsub(); };
   }, [currentUser]);
 
@@ -451,7 +454,7 @@ export default function App() {
 
   const renderSavedPlacesSuggestions = (type: 'PICKUP' | 'DESTINATION' | 'SCHEDULE_PICKUP' | 'SCHEDULE_DESTINATION') => {
      return (
-        <div className="w-full bg-white dark:bg-gray-800 rounded-b-xl shadow-xl z-[70] overflow-hidden border border-gray-100 dark:border-gray-700 animate-slide-up max-h-[50vh] overflow-y-auto mt-1">
+        <div className="w-full bg-white dark:bg-gray-800 rounded-b-xl shadow-xl z-[70] overflow-hidden border border-gray-100 dark:border-gray-700 animate-slide-up max-h-[50vh] overflow-y-auto mt-1 relative">
            
            {/* 1. API RESULTS */}
            {addressSuggestions.length > 0 && (

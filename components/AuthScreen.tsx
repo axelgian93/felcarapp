@@ -1,6 +1,5 @@
-
 import React, { useState } from 'react';
-import { Mail, Lock, User as UserIcon, ArrowRight, Car, ShieldAlert, CreditCard, Calendar, Palette, ShieldCheck, Eye, EyeOff, QrCode, CheckCircle } from 'lucide-react';
+import { Mail, Lock, User as UserIcon, ArrowRight, Car, ShieldAlert, CreditCard, Calendar, ShieldCheck, Eye, EyeOff, QrCode, CheckCircle } from 'lucide-react';
 import { User, UserRole, CarType } from '../types';
 import * as SecurityService from '../services/securityService';
 
@@ -286,7 +285,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin, onRegister, err
               <button 
                 type="button" 
                 onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-4 top-3.5 text-gray-500 hover:text-white transition"
+                className="absolute right-4 top-3.5 text-gray-500 hover:text-gray-600 transition"
               >
                 {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
               </button>

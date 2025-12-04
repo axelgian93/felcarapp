@@ -1,6 +1,6 @@
 
 import React, { useState, useMemo, useEffect } from 'react';
-import { X, Calendar, MapPin, Clock, ArrowRight, Wallet, TrendingUp, AlertCircle, CreditCard, Banknote, Car, Building2, ArrowLeft } from 'lucide-react';
+import { Calendar, Wallet, TrendingUp, AlertCircle, CreditCard, Banknote, Car, Building2, ArrowLeft, Clock } from 'lucide-react';
 import { TripHistoryItem, UserRole, PaymentMethod } from '../types';
 
 interface TripHistoryProps {

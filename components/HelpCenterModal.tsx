@@ -1,8 +1,5 @@
-
-
-
 import React, { useState } from 'react';
-import { X, HelpCircle, AlertTriangle, PackageX, ChevronRight, MessageSquare, Phone, ChevronDown, Send, Camera, Paperclip, CheckCircle2 } from 'lucide-react';
+import { X, HelpCircle, ChevronRight, ChevronDown, Send, Camera, CheckCircle2 } from 'lucide-react';
 import { User } from '../types';
 import { SupportService } from '../src/services/supportService';
 import { ImageService } from '../src/services/imageService';

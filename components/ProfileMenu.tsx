@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { X, User, CreditCard, History, Settings, LogOut, Star, ChevronRight, ShieldQuestion, MapPin, Shield, Plus, Trash2, Phone, Mail, FileText, Car, Percent, ArrowLeft, Camera, BarChart3, Lock, Calendar } from 'lucide-react';
 import { User as UserType, UserRole } from '../types';
@@ -37,7 +36,7 @@ export const ProfileMenu: React.FC<ProfileMenuProps> = ({
   const [section, setSection] = useState<'MAIN' | 'EMERGENCY' | 'PREFS' | 'PERSONAL' | 'VEHICLE' | 'DOCS'>('MAIN');
 
   // Mock Contacts for Demo
-  const [contacts, setContacts] = useState(user.emergencyContacts || [
+  const [contacts] = useState(user.emergencyContacts || [
     { id: 'c1', name: 'Mamá', phone: '0999999999', relation: 'Familia' }
   ]);
 
@@ -391,7 +390,7 @@ const MenuItem = ({ icon, label, onClick }: any) => (
   >
     <div className="flex items-center gap-4 text-gray-700 group-hover:text-black">
       <div className="text-gray-400 group-hover:text-black transition">{icon}</div>
-      <span className="font-medium text-sm text-black">{item => label} {label}</span>
+      <span className="font-medium text-sm text-black">{label}</span>
     </div>
     <ChevronRight size={16} className="text-gray-300 group-hover:text-gray-800" />
   </button>

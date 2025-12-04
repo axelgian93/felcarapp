@@ -1,22 +1,19 @@
-
 import React, { useState, useEffect, useRef } from 'react';
 import L from 'leaflet';
 import { 
   LayoutDashboard, Users, Car, Map as MapIcon, 
   DollarSign, Settings, Headphones, BarChart3, 
-  Bell, LogOut, Search, Filter, Check, X, 
-  Eye, MoreVertical, AlertTriangle, FileText, 
-  TrendingUp, CreditCard, Calendar, Shield, 
-  MessageSquare, MapPin, Navigation, Tag,
-  PieChart, Activity, UserX, AlertOctagon,
-  Star, Menu, Send, Gift, Save, Ban, Trash2, CheckCircle, Unlock, Lock,
-  Building, Briefcase, RefreshCw, Repeat, Edit, Power, Mail, Globe, ArrowUpRight, ArrowDownRight, Paperclip, Camera, Plus,
-  Percent, User as UserIcon, UserCog
+  Bell, LogOut, X, 
+  Eye, 
+  TrendingUp, 
+  Shield, 
+  Ban, Trash2, CheckCircle, Lock,
+  Building, Briefcase, RefreshCw, Edit, Power, Plus,
+  Percent, User as UserIcon, UserCog, Menu
 } from 'lucide-react';
 import { 
-  User, UserRole, AccountStatus, AdminReport, 
-  SystemNotification, TripHistoryItem, Driver, 
-  PricingConfig, SupportTicket, Transaction, PaymentMethod, Cooperative, Company, CarType
+  User, UserRole, AccountStatus, TripHistoryItem, Driver, 
+  PricingConfig, SupportTicket, Cooperative, Company, CarType
 } from '../types';
 import { NotificationsModal } from './NotificationsModal';
 import { CompanyService } from '../src/services/companyService';
@@ -73,7 +70,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
   );
 
   const currentAdminCoop = cooperatives.find(c => c.id === currentUser.cooperativeId);
-  const [selectedUser, setSelectedUser] = useState<User | null>(null);
+  // Removed unused selectedUser
   const [companies, setCompanies] = useState<Company[]>([]);
   const [tickets, setTickets] = useState<SupportTicket[]>([]);
   const [ticketFilter, setTicketFilter] = useState<'ALL' | 'OPEN' | 'CLOSED'>('ALL');
@@ -124,7 +121,8 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
   
   const dashboardMapRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<L.Map | null>(null);
-  const markersRef = useRef<L.Marker[]>([]);
+  // Corrected Type: CircleMarker extends Layer, not Marker directly in TypeScript strictness sometimes, but both are Layers.
+  const markersRef = useRef<L.Layer[]>([]); 
   const resizeObserverRef = useRef<ResizeObserver | null>(null);
 
   useEffect(() => {
@@ -525,7 +523,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                         <div className="flex justify-center gap-2">
                            {u.status === AccountStatus.PENDING ? (
                               <>
-                                 <button onClick={() => onApprove(u.id)} className="p-2 bg-green-100 text-green-600 rounded-lg hover:bg-green-200" title="Aprobar"><Check size={16}/></button>
+                                 <button onClick={() => onApprove(u.id)} className="p-2 bg-green-100 text-green-600 rounded-lg hover:bg-green-200" title="Aprobar"><CheckCircle size={16}/></button>
                                  <button onClick={() => onReject(u.id)} className="p-2 bg-red-100 text-red-600 rounded-lg hover:bg-red-200" title="Rechazar"><X size={16}/></button>
                               </>
                            ) : (
@@ -694,7 +692,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
       <div className="max-w-4xl mx-auto animate-fade-in">
         <div className="flex justify-between items-center mb-6">
            <h2 className="text-2xl font-bold text-gray-800 flex items-center gap-2"><Settings /> {title}</h2>
-           <button onClick={saveHandler} className="bg-black text-white px-6 py-3 rounded-xl font-bold flex items-center gap-2 shadow-lg hover:bg-gray-800"><Save size={18}/> Guardar Cambios</button>
+           <button onClick={saveHandler} className="bg-black text-white px-6 py-3 rounded-xl font-bold flex items-center gap-2 shadow-lg hover:bg-gray-800"><Settings size={18}/> Guardar Cambios</button>
         </div>
         
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -853,9 +851,9 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
            <h2 className="text-2xl font-bold text-gray-800 flex items-center gap-2"><DollarSign /> Finanzas</h2>
            
            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <StatCard title="Volumen Total" value={`$${totalVolume.toFixed(2)}`} sub="Bruto Generado" icon={<Activity className="text-blue-600"/>} color="bg-blue-50" />
+              <StatCard title="Volumen Total" value={`$${totalVolume.toFixed(2)}`} sub="Bruto Generado" icon={<DollarSign className="text-blue-600"/>} color="bg-blue-50" />
               <StatCard title="Comisiones" value={`$${platformCommission.toFixed(2)}`} sub="Ingreso Plataforma (Real)" icon={<TrendingUp className="text-green-600"/>} color="bg-green-50" />
-              <StatCard title="Por Pagar" value={`$${pendingPayouts.toFixed(2)}`} sub="A Conductores" icon={<AlertOctagon className="text-orange-600"/>} color="bg-orange-50" />
+              <StatCard title="Por Pagar" value={`$${pendingPayouts.toFixed(2)}`} sub="A Conductores" icon={<DollarSign className="text-orange-600"/>} color="bg-orange-50" />
            </div>
 
            <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
