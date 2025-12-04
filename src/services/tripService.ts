@@ -1,4 +1,3 @@
-
 import { db } from "../firebaseConfig";
 import { 
   collection, 
@@ -8,8 +7,6 @@ import {
   onSnapshot, 
   query, 
   where, 
-  orderBy, 
-  Timestamp,
   serverTimestamp,
   limit
 } from "firebase/firestore";

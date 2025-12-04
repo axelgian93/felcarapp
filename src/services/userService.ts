@@ -1,4 +1,3 @@
-
 import { db } from "../firebaseConfig";
 import { 
   collection, 
@@ -12,7 +11,7 @@ import {
   setDoc,
   serverTimestamp
 } from "firebase/firestore";
-import { User, AccountStatus, SavedPlace, UserRole, Driver } from "../../types";
+import { User, AccountStatus, SavedPlace, UserRole } from "../../types";
 
 export const UserService = {
   

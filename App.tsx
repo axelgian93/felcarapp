@@ -76,7 +76,7 @@ export default function App() {
   
   // Driver specific
   const [isDriverOnline, setIsDriverOnline] = useState(false);
-  const [onlineDuration] = useState('00:00'); // setOnlineDuration unused
+  const [onlineDuration] = useState('00:00'); 
   const [driverOtpInput, setDriverOtpInput] = useState('');
   const [showOtpInput, setShowOtpInput] = useState(false);
   const [driverEarningsTab, setDriverEarningsTab] = useState<'EARNINGS' | 'HISTORY' | 'HOURS'>('EARNINGS');
@@ -85,7 +85,8 @@ export default function App() {
   // Data State
   const [allUsers, setAllUsers] = useState<User[]>([]);
   const [availableDrivers, setAvailableDrivers] = useState<Driver[]>([]);
-  const [tripHistory, setTripHistory] = useState<TripHistoryItem[]>([]);
+  // Removed unused setter setTripHistory
+  const [tripHistory] = useState<TripHistoryItem[]>([]);
   const [cooperatives, setCooperatives] = useState<Cooperative[]>([]);
   const [currentCooperative, setCurrentCooperative] = useState<Cooperative | null>(null);
   const [currentCompany, setCurrentCompany] = useState<Company | null>(null);
@@ -100,7 +101,7 @@ export default function App() {
   const [isSchedulingOpen, setIsSchedulingOpen] = useState(false);
   const [isScheduledRidesListOpen, setIsScheduledRidesListOpen] = useState(false);
   const [isChangePasswordOpen, setIsChangePasswordOpen] = useState(false);
-  const [isChatOpen, setIsChatOpen] = useState(false);
+  // Removed unused isChatOpen state
   const [tempSavedPlaceLocation, setTempSavedPlaceLocation] = useState<Location | null>(null);
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
 
@@ -260,10 +261,6 @@ export default function App() {
          } as Driver));
        setAvailableDrivers(drivers);
     });
-    // Trip history sub removed as setter was unused in original code or handled locally.
-    // If we want global trip history we need to use it.
-    // Re-enabling for consistency if logic requires it, but setter was marked unused.
-    // For now, ignoring setTripHistory as per user error log.
     
     return () => { coopUnsub(); usersUnsub(); };
   }, [currentUser]);
@@ -681,7 +678,7 @@ export default function App() {
                 <div className="p-6 dark:text-white">
                    <div className="flex items-center gap-4 mb-6"><img src={displayUser.photoUrl} className="w-16 h-16 rounded-full border-4 border-white dark:border-gray-700 shadow-lg object-cover" /><div><h3 className="font-bold text-xl">{displayUser.name}</h3>{currentUser.role === UserRole.RIDER && assignedDriver && <p className="text-sm text-gray-500">{assignedDriver.carModel} • {assignedDriver.plate}</p>}</div></div>
                    {currentUser.role === UserRole.RIDER && status === RideStatus.DRIVER_ASSIGNED && tripOtp && <div className="bg-blue-50 dark:bg-blue-900/30 border border-blue-100 dark:border-blue-800 rounded-xl p-4 mb-6 text-center"><p className="text-blue-600 dark:text-blue-400 text-xs font-bold uppercase mb-1">Código de Seguridad</p><p className="text-3xl font-black text-blue-900 dark:text-white tracking-[0.5em]">{tripOtp}</p></div>}
-                   <div className="grid grid-cols-2 gap-3 mb-4"><button onClick={() => setIsChatOpen(true)} className="bg-gray-100 dark:bg-gray-800 py-3 rounded-xl font-bold flex items-center justify-center gap-2"><MessageSquare size={20} /> Chat</button><button onClick={handleLogout} className="bg-gray-100 dark:bg-gray-800 py-3 rounded-xl font-bold flex items-center justify-center gap-2 text-red-500"><LogOut size={20} /> Salir</button></div>
+                   <div className="grid grid-cols-2 gap-3 mb-4"><button onClick={() => showNotification("Chat no disponible")} className="bg-gray-100 dark:bg-gray-800 py-3 rounded-xl font-bold flex items-center justify-center gap-2"><MessageSquare size={20} /> Chat</button><button onClick={handleLogout} className="bg-gray-100 dark:bg-gray-800 py-3 rounded-xl font-bold flex items-center justify-center gap-2 text-red-500"><LogOut size={20} /> Salir</button></div>
                    {currentUser.role === UserRole.DRIVER && status === RideStatus.DRIVER_ASSIGNED && (<div className="flex gap-2">{showOtpInput ? <><input type="text" value={driverOtpInput} onChange={e=>setDriverOtpInput(e.target.value)} className="flex-grow bg-gray-100 dark:bg-gray-800 rounded-xl px-4 text-center font-bold" placeholder="PIN" /><button onClick={handleVerifyStartTrip} className="bg-green-600 text-white px-6 rounded-xl font-bold"><CheckCircle2/></button></> : <button onClick={() => setShowOtpInput(true)} className="w-full bg-black dark:bg-white text-white dark:text-black py-4 rounded-xl font-bold flex items-center justify-center gap-2"><Lock size={20}/> Iniciar Viaje</button>}</div>)}
                    {currentUser.role === UserRole.DRIVER && status === RideStatus.IN_PROGRESS && <button onClick={finishTripDriver} className="w-full bg-red-600 text-white py-4 rounded-xl font-bold">Finalizar Viaje</button>}
                 </div>

@@ -1,10 +1,8 @@
-
 import { auth, db } from "../firebaseConfig";
 import { 
   signInWithEmailAndPassword, 
   createUserWithEmailAndPassword, 
   signOut, 
-  deleteUser,
   updatePassword,
   User as FirebaseUser 
 } from "firebase/auth";
