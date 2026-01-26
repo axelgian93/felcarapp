@@ -1,20 +1,34 @@
-<div align="center">
-<img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
-</div>
+# 🚖 FelcarRide - Ecosistema de Transporte Inteligente
 
-# Run and deploy your AI Studio app
+FelcarRide es una plataforma de movilidad de última generación diseñada para el mercado ecuatoriano (enfocada inicialmente en Guayaquil). A diferencia de las apps de taxi tradicionales, FelcarRide integra Inteligencia Artificial para la estimación dinámica de tarifas y una arquitectura multi-inquilino (multi-tenant) que permite a diferentes cooperativas gestionar su propia flota y reglas de negocio.
 
-This contains everything you need to run your app locally.
+## 🚀 Características Principales
 
-View your app in AI Studio: https://ai.studio/apps/drive/1A2toZuc9r-bBZXfPHacl3JLhDKeP_rXR
+### 🤖 Inteligencia Artificial (Google Gemini)
+- **Estimación Dinámica:** Cálculo de tarifas en tiempo real basado en tráfico, demanda y tipo de servicio (Económico, Confort, XL).
+- **Rutas Inteligentes:** Optimización de puntos de recogida y destinos mediante procesamiento de lenguaje natural.
 
-## Run Locally
+### 🏢 Arquitectura Multi-Tenant (Cooperativas)
+- **Gestión Independiente:** Cada cooperativa tiene su propio código de invitación, reglas de precios y panel administrativo.
+- **Comisiones Flexibles:** Configuración de porcentajes de ganancia personalizados por grupo.
 
-**Prerequisites:**  Node.js
+### 💼 Módulo B2B (Corporativo)
+- **Crédito Empresarial:** Permite a empresas (ej. El Rosado, Banco del Pacífico) ofrecer transporte a sus empleados con facturación mensual.
+- **Límites de Consumo:** Control de presupuesto por empresa y seguimiento de rutas corporativas.
 
+### 📱 Experiencia de Usuario (Rider & Driver)
+- **Real-time Tracking:** Mapas interactivos con Leaflet.js.
+- **Seguridad:** Códigos OTP para inicio de viajes y botón de pánico SOS.
+- **Multiplataforma:** Web App optimizada y lista para Android/iOS mediante Capacitor.
 
-1. Install dependencies:
-   `npm install`
-2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
-3. Run the app:
-   `npm run dev`
+## 🛠 Stack Tecnológico
+
+- **Frontend:** React 19 + TypeScript + Tailwind CSS.
+- **Build Tool:** Vite.
+- **Base de Datos & Auth:** Firebase (Firestore & Authentication).
+- **IA:** Google Gemini API (@google/genai).
+- **Mapas:** Leaflet.js + OpenStreetMap (OSRM para rutas).
+- **Mobile:** Ionic Capacitor.
+
+---
+Desarrollado con ❤️ para el futuro de la movilidad en Ecuador.

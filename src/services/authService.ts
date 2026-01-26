@@ -1,17 +1,7 @@
+
+// Guidelines: Using compat API to resolve "no exported member" errors
+import firebase from 'firebase/compat/app';
 import { auth, db } from "../firebaseConfig";
-import { 
-  signInWithEmailAndPassword, 
-  createUserWithEmailAndPassword, 
-  signOut, 
-  updatePassword,
-  User as FirebaseUser 
-} from "firebase/auth";
-import { 
-  doc, 
-  setDoc, 
-  getDoc, 
-  Timestamp
-} from "firebase/firestore";
 import { User, UserRole, AccountStatus } from "../../types";
 // Import mock data to seed DB if profile missing
 import { INITIAL_USERS, INITIAL_COOPERATIVES } from "../mockData";
@@ -53,7 +43,7 @@ const mapDocToUser = (id: string, data: any): User => {
     name: data.name,
     role: data.role as UserRole,
     status: data.status as AccountStatus,
-    cooperativeId: data.cooperativeId, // MULTI-TENANT MAPPING
+    cooperativeId: data.cooperativeId,
     photoUrl: data.photoUrl,
     phone: data.phone,
     cedula: data.cedula,
@@ -68,12 +58,12 @@ const mapDocToUser = (id: string, data: any): User => {
 
 export const AuthService = {
   
-  getUserProfile: async (uid: string, fbUser?: FirebaseUser): Promise<User | null> => {
+  getUserProfile: async (uid: string, fbUser?: any): Promise<User | null> => {
     try {
-      const userDocRef = doc(db, "users", uid);
-      const userDoc = await getDoc(userDocRef);
+      // Using compat API for Firestore
+      const userDoc = await db.collection("users").doc(uid).get();
 
-      if (userDoc.exists()) {
+      if (userDoc.exists) {
         return mapDocToUser(uid, userDoc.data());
       } else if (fbUser) {
         return await AuthService.createProfileFromFallback(fbUser);
@@ -85,20 +75,18 @@ export const AuthService = {
     }
   },
 
-  createProfileFromFallback: async (fbUser: FirebaseUser): Promise<User> => {
+  createProfileFromFallback: async (fbUser: any): Promise<User> => {
     console.warn(`Creating missing profile for ${fbUser.email}...`);
     
-    // Check if this email matches a mock user to seed with rich data
     const mockMatch = INITIAL_USERS.find(u => u.email.toLowerCase() === fbUser.email?.toLowerCase());
 
     let newProfile: any;
 
     if (mockMatch) {
-        // Exclude 'id' and 'password' from the spread
         const { id, password, ...rest } = mockMatch;
         newProfile = {
             ...rest,
-            createdAt: Timestamp.now()
+            createdAt: firebase.firestore.FieldValue.serverTimestamp()
         };
     } else {
         newProfile = {
@@ -106,8 +94,8 @@ export const AuthService = {
             name: fbUser.displayName || 'Usuario Sin Nombre',
             role: UserRole.RIDER,
             status: AccountStatus.ACTIVE,
-            cooperativeId: 'coop-global', // Default to global if healing
-            createdAt: Timestamp.now(),
+            cooperativeId: 'coop-global',
+            createdAt: firebase.firestore.FieldValue.serverTimestamp(),
             photoUrl: fbUser.photoURL || `https://ui-avatars.com/api/?name=${fbUser.email}&background=random`,
             phone: '',
             rating: 5.0
@@ -115,16 +103,16 @@ export const AuthService = {
     }
 
     const cleanProfile = cleanFirestoreData(newProfile);
-    await setDoc(doc(db, "users", fbUser.uid), cleanProfile);
+    await db.collection("users").doc(fbUser.uid).set(cleanProfile);
     return mapDocToUser(fbUser.uid, cleanProfile);
   },
 
   register: async (userData: Omit<User, 'id' | 'status'>, pass: string, coopCode: string): Promise<User> => {
-    // 1. Create Auth User
-    const userCredential = await createUserWithEmailAndPassword(auth, userData.email, pass);
-    const fbUser = userCredential.user;
+    // 1. Create Auth User using compat API
+    const userCredential = await auth.createUserWithEmailAndPassword(userData.email, pass);
+    const fbUser = userCredential.user!;
 
-    // 2. Determine Cooperative ID based on code (if provided)
+    // 2. Determine Cooperative ID based on code
     let targetCoopId = 'coop-global';
     if (coopCode) {
          const coop = INITIAL_COOPERATIVES.find(c => c.code === coopCode);
@@ -136,55 +124,40 @@ export const AuthService = {
       ...userData,
       status: AccountStatus.PENDING,
       cooperativeId: targetCoopId,
-      createdAt: Timestamp.now(),
+      createdAt: firebase.firestore.FieldValue.serverTimestamp(),
       rating: 5.0
     };
 
     const cleanProfile = cleanFirestoreData(newProfile);
-    await setDoc(doc(db, "users", fbUser.uid), cleanProfile);
+    await db.collection("users").doc(fbUser.uid).set(cleanProfile);
     
     return mapDocToUser(fbUser.uid, cleanProfile);
   },
 
   login: async (email: string, pass: string): Promise<User> => {
     try {
-      const userCredential = await signInWithEmailAndPassword(auth, email, pass);
-      const fbUser = userCredential.user;
+      // Using compat API for login
+      const userCredential = await auth.signInWithEmailAndPassword(email, pass);
+      const fbUser = userCredential.user!;
 
-      const userDocRef = doc(db, "users", fbUser.uid);
-      const userDoc = await getDoc(userDocRef);
+      const userDoc = await db.collection("users").doc(fbUser.uid).get();
 
-      if (userDoc.exists()) {
+      if (userDoc.exists) {
         return mapDocToUser(fbUser.uid, userDoc.data());
       } else {
         return await AuthService.createProfileFromFallback(fbUser);
       }
     } catch (error: any) {
-      // AUTO-SEEDING FOR MOCK USERS
       const mockUser = INITIAL_USERS.find(u => u.email.toLowerCase() === email.toLowerCase());
       
       if (mockUser && mockUser.password === pass) {
-         if (error.code === 'auth/invalid-credential' || error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password') {
+         if (error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password' || error.code === 'auth/invalid-credential') {
             console.log(`Auto-seeding demo user: ${email}`);
             try {
                const { id, password, ...profileData } = mockUser;
-               // Bypass code check for mock seeding
                return await AuthService.register(profileData, pass, ''); 
             } catch (regError: any) {
                console.error("Auto-seed failed:", regError);
-               
-               // DEBUGGING: Return clearer errors for APK testing
-               if (regError.code === 'auth/email-already-in-use') {
-                  throw new Error(`El usuario ${email} ya existe pero la contraseña es incorrecta. Bórralo en Firebase Auth o usa la contraseña antigua.`);
-               }
-               if (regError.code === 'auth/network-request-failed') {
-                  throw new Error("Error de conexión. Verifica tu internet o las restricciones de la API Key en Google Cloud (Android vs Web).");
-               }
-               if (regError.code === 'auth/weak-password') {
-                  throw new Error("Error crítico: La contraseña del usuario de prueba es muy débil.");
-               }
-
-               // Pass through existing user error if it was just a wrong password attempt originally
                throw error;
             }
          }
@@ -194,13 +167,13 @@ export const AuthService = {
   },
 
   logout: async () => {
-    await signOut(auth);
+    await auth.signOut();
   },
 
   updateUserPassword: async (newPass: string) => {
     const user = auth.currentUser;
     if (user) {
-      await updatePassword(user, newPass);
+      await user.updatePassword(newPass);
     } else {
       throw new Error("No user logged in");
     }

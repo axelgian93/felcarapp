@@ -1,18 +1,10 @@
 
-import { GoogleGenAI, Type, Schema } from "@google/genai";
+// @google/genai Coding Guidelines: Using direct process.env.API_KEY and gemini-3-flash-preview
+import { GoogleGenAI, Type } from "@google/genai";
 import { RideOption, ServiceType } from "../types";
 
-// Lazy Initialize Gemini Client
-let ai: GoogleGenAI | null = null;
-
-const getAI = () => {
-  if (!ai) {
-    // Safe fallback string to prevent crash, though calls will fail if key is invalid
-    const apiKey = process.env.API_KEY || ''; 
-    ai = new GoogleGenAI({ apiKey });
-  }
-  return ai;
-};
+// Initialize Gemini Client once with direct env variable
+const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
 export const getRideEstimates = async (
   origin: string,
@@ -22,7 +14,7 @@ export const getRideEstimates = async (
   serviceType: ServiceType = ServiceType.RIDE
 ): Promise<RideOption[]> => {
   
-  const schema: Schema = {
+  const schema = {
     type: Type.ARRAY,
     items: {
       type: Type.OBJECT,
@@ -59,9 +51,9 @@ export const getRideEstimates = async (
   }
 
   try {
-    const client = getAI();
-    const response = await client.models.generateContent({
-      model: "gemini-2.5-flash",
+    // Guidelines: Using ai.models.generateContent directly with model name and prompt
+    const response = await ai.models.generateContent({
+      model: 'gemini-3-flash-preview',
       contents: `User location: ${currentLat}, ${currentLng} (approx ${origin}). 
       Destination: "${destination}". 
       ${contextPrompt}
@@ -101,9 +93,8 @@ export const getRideEstimates = async (
 
 export const getDestinationCoordinates = async (destination: string, nearbyLat: number, nearbyLng: number): Promise<{lat: number, lng: number} | null> => {
    try {
-     const client = getAI();
-     const response = await client.models.generateContent({
-       model: "gemini-2.5-flash",
+     const response = await ai.models.generateContent({
+       model: 'gemini-3-flash-preview',
        contents: `I am at ${nearbyLat}, ${nearbyLng} (Guayaquil, EC). The user wants to go to "${destination}". 
        Generate a JSON object with 'lat' and 'lng'. Return coordinates in Guayaquil.`,
        config: {
@@ -113,7 +104,8 @@ export const getDestinationCoordinates = async (destination: string, nearbyLat: 
            properties: {
              lat: { type: Type.NUMBER },
              lng: { type: Type.NUMBER }
-           }
+           },
+           required: ["lat", "lng"]
          }
        }
      });

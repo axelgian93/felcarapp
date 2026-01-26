@@ -1,10 +1,10 @@
+
 import { useState, useEffect, useRef } from 'react';
 import { 
   Map as MapIcon, MapPin, Home, Briefcase, Heart, Bell, Menu, Sun, Moon, 
   DollarSign, Clock, History, Power, Car, X, Calendar, Locate, Search, 
   CheckCircle2, MessageSquare, LogOut, Lock, Clock as ClockIcon
 } from 'lucide-react';
-// ... imports
 import { MapBackground } from './components/MapBackground';
 import { AuthScreen } from './components/AuthScreen';
 import { AdminPanel } from './components/AdminPanel';
@@ -32,7 +32,6 @@ import {
   User, UserRole, RideStatus, Location, Driver, RideOption, ServiceType, 
   TripHistoryItem, Cooperative, Company, AccountStatus, PaymentMethod 
 } from './types';
-import { onAuthStateChanged } from 'firebase/auth';
 import { auth } from './src/firebaseConfig';
 
 export default function App() {
@@ -85,7 +84,6 @@ export default function App() {
   // Data State
   const [allUsers, setAllUsers] = useState<User[]>([]);
   const [availableDrivers, setAvailableDrivers] = useState<Driver[]>([]);
-  // Removed unused setter setTripHistory
   const [tripHistory] = useState<TripHistoryItem[]>([]);
   const [cooperatives, setCooperatives] = useState<Cooperative[]>([]);
   const [currentCooperative, setCurrentCooperative] = useState<Cooperative | null>(null);
@@ -101,7 +99,6 @@ export default function App() {
   const [isSchedulingOpen, setIsSchedulingOpen] = useState(false);
   const [isScheduledRidesListOpen, setIsScheduledRidesListOpen] = useState(false);
   const [isChangePasswordOpen, setIsChangePasswordOpen] = useState(false);
-  // Removed unused isChatOpen state
   const [tempSavedPlaceLocation, setTempSavedPlaceLocation] = useState<Location | null>(null);
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
 
@@ -129,15 +126,10 @@ export default function App() {
       navigator.geolocation.getCurrentPosition(
           (pos) => {
               const loc = { lat: pos.coords.latitude, lng: pos.coords.longitude };
-              // Update Core Location
               setUserLocation(loc);
               setMapCenterCoords(loc);
-              
-              // Update Inputs immediately
               setPickupLocation(loc);
               setPickupText('Ubicación actual');
-              
-              // Force Map to Fly
               setGpsSignal(prev => prev + 1);
           },
           (err) => {
@@ -194,14 +186,14 @@ export default function App() {
 
   // --- EFFECTS ---
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+    // Guidelines: Fix for modular auth error by using compat style auth instance
+    const unsubscribe = auth.onAuthStateChanged(async (firebaseUser) => {
       setIsLoadingAuth(true);
       if (firebaseUser) {
         try {
           const profile = await AuthService.getUserProfile(firebaseUser.uid, firebaseUser);
           if (profile) {
             setCurrentUser(profile);
-            // Load Recent Places
             setRecentPlaces(PlacesService.getRecentPlaces());
             
             if (navigator.geolocation) {
@@ -230,7 +222,7 @@ export default function App() {
     return () => unsubscribe();
   }, []);
 
-  // Data Subscriptions (Users, Coops, Companies)
+  // Data Subscriptions
   useEffect(() => {
     if (!currentUser) return;
     const coopUnsub = CooperativeService.subscribeToCooperatives((data) => {
@@ -298,31 +290,26 @@ export default function App() {
   };
 
   const handleAddressInput = (val: string, field: typeof activeField) => {
-      // 1. Update Input Text Immediately
       if (field === 'PICKUP') setPickupText(val);
       else if (field === 'DESTINATION') setDestinationText(val);
       else if (field === 'SCHEDULE_PICKUP') setScheduleForm(prev => ({ ...prev, pickup: val }));
       else if (field === 'SCHEDULE_DESTINATION') setScheduleForm(prev => ({ ...prev, destination: val }));
 
-      // 2. Debounce API Call to prevent race conditions
-      if (debounceRef.current) {
-          clearTimeout(debounceRef.current);
-      }
+      if (debounceRef.current) clearTimeout(debounceRef.current);
 
       if (val.length > 2) {
          debounceRef.current = setTimeout(async () => {
              const results = await MapService.searchAddress(val);
              setAddressSuggestions(results);
-         }, 500); // 500ms debounce
+         }, 500);
       } else {
          setAddressSuggestions([]);
       }
   };
 
   const handleSelectLocation = (place: Location, type: 'PICKUP' | 'DESTINATION' | 'SCHEDULE_PICKUP' | 'SCHEDULE_DESTINATION') => {
-      // Save to recent places
       PlacesService.addRecentPlace(place);
-      setRecentPlaces(PlacesService.getRecentPlaces()); // Update UI
+      setRecentPlaces(PlacesService.getRecentPlaces());
 
       if (type === 'PICKUP') { setPickupText(place.address || ''); setPickupLocation(place); } 
       else if (type === 'DESTINATION') { setDestinationText(place.address || ''); setDestinationLocation(place); }
@@ -391,7 +378,7 @@ export default function App() {
      setTimeout(() => { resetApp(); }, 2000);
   };
 
-  // Admin Handlers (Delegated to services)
+  // Admin Handlers
   const handleApproveUser = (uid: string) => UserService.approveUser(uid);
   const handleRejectUser = (uid: string) => UserService.rejectUser(uid);
   const handleToggleStatus = (uid: string) => {
@@ -452,8 +439,6 @@ export default function App() {
   const renderSavedPlacesSuggestions = (type: 'PICKUP' | 'DESTINATION' | 'SCHEDULE_PICKUP' | 'SCHEDULE_DESTINATION') => {
      return (
         <div className="w-full bg-white dark:bg-gray-800 rounded-b-xl shadow-xl z-[70] overflow-hidden border border-gray-100 dark:border-gray-700 animate-slide-up max-h-[50vh] overflow-y-auto mt-1 relative">
-           
-           {/* 1. API RESULTS */}
            {addressSuggestions.length > 0 && (
               <div className="border-b border-gray-100 dark:border-gray-700">
                  <p className="text-[10px] uppercase font-bold text-gray-400 p-3 pb-1">Resultados</p>
@@ -465,8 +450,6 @@ export default function App() {
                  ))}
               </div>
            )}
-
-           {/* 2. SAVED PLACES */}
            {currentUser?.savedPlaces && currentUser.savedPlaces.length > 0 && (
               <div>
                  <p className="text-[10px] uppercase font-bold text-gray-400 p-3 pb-1">Guardados</p>
@@ -478,8 +461,6 @@ export default function App() {
                  ))}
               </div>
            )}
-
-           {/* 3. RECENT PLACES (NEW) */}
            {recentPlaces.length > 0 && (
               <div className="border-t border-gray-100 dark:border-gray-700">
                  <p className="text-[10px] uppercase font-bold text-gray-400 p-3 pb-1">Recientes</p>
@@ -491,8 +472,6 @@ export default function App() {
                  ))}
               </div>
            )}
-
-           {/* 4. MAP BUTTON (MOVED TO BOTTOM) */}
            <button onClick={() => { setIsPickingOnMap(true); setPickingTarget(type); if (type.includes('SCHEDULE')) setIsSchedulingOpen(false); setActiveField(null); }} className="w-full flex items-center gap-3 p-3 hover:bg-gray-50 dark:hover:bg-gray-700 text-left transition border-t border-gray-50 dark:border-gray-700 bg-black text-white dark:bg-white dark:text-black">
               <div className="p-2 bg-white dark:bg-black rounded-full text-black dark:text-white"><MapIcon size={16} /></div>
               <div><p className="font-bold text-sm">Seleccionar en el mapa</p><p className="text-xs opacity-80">Fijar ubicación manualmente</p></div>
@@ -529,7 +508,6 @@ export default function App() {
         </div>
       </nav>
 
-      {/* PICK ON MAP UI */}
       {isPickingOnMap && (
          <div className="absolute bottom-10 left-0 right-0 px-6 z-50 flex flex-col items-center animate-slide-up">
             <div className="bg-white dark:bg-gray-800 p-4 rounded-2xl shadow-2xl w-full max-w-md text-center space-y-4">
@@ -552,7 +530,6 @@ export default function App() {
          </div>
       )}
 
-      {/* DRIVER DASHBOARD */}
       {currentUser.role === UserRole.DRIVER && status === RideStatus.IDLE && !isPickingOnMap && (
         <div className="absolute bottom-0 w-full bg-white dark:bg-gray-900 rounded-t-3xl shadow-2xl z-30 p-6 animate-slide-up">
            <div className="flex justify-between items-center mb-6">
@@ -586,11 +563,8 @@ export default function App() {
          </div>
       )}
 
-      {/* RIDER UI */}
       {currentUser.role === UserRole.RIDER && status === RideStatus.IDLE && !isPickingOnMap && (
         <div className={`absolute bottom-0 w-full bg-white dark:bg-gray-900 shadow-2xl transition-all duration-300 ease-in-out flex flex-col ${activeField ? 'h-full top-0 rounded-none z-[60]' : 'rounded-t-3xl z-30'}`}>
-          
-          {/* HEADER SECTION (Fixed) */}
           <div className={`flex-none bg-white dark:bg-gray-900 z-50 ${activeField ? 'pt-20 px-6 pb-2' : 'p-6 pb-0'}`}>
              {activeField && (
                <div className="flex items-center dark:text-white mb-4">
@@ -598,11 +572,7 @@ export default function App() {
                  <h2 className="font-bold text-lg ml-2">Planifica tu viaje</h2>
                </div>
              )}
-
-             {/* Inputs Block */}
              <div className="space-y-3 relative">
-                
-                {/* PICKUP BLOCK */}
                 <div>
                     <div className="bg-gray-100 dark:bg-gray-800 rounded-xl flex items-center px-4 py-3 relative">
                         <div className="w-2 h-2 bg-green-500 rounded-full mr-3 shrink-0"></div>
@@ -613,11 +583,8 @@ export default function App() {
                         />
                         <button onClick={forceLocationRefresh} className="p-1 bg-white dark:bg-black rounded-full text-black dark:text-white shadow-sm ml-2 hover:scale-110 transition" title="Forzar GPS"><Locate size={16} /></button>
                     </div>
-                    {/* Suggestions render OUTSIDE the input container so they push content down */}
                     {activeField === 'PICKUP' && renderSavedPlacesSuggestions('PICKUP')}
                 </div>
-                
-                {/* DESTINATION BLOCK */}
                 <div>
                     <div className="bg-gray-100 dark:bg-gray-800 rounded-xl flex items-center px-4 py-3 relative">
                         <div className="w-2 h-2 bg-black dark:bg-white rounded-full mr-3 shrink-0"></div>
@@ -628,11 +595,8 @@ export default function App() {
                     </div>
                     {activeField === 'DESTINATION' && renderSavedPlacesSuggestions('DESTINATION')}
                 </div>
-
              </div>
           </div>
-
-          {/* SCROLLABLE CONTENT */}
           <div className="flex-grow overflow-y-auto p-6 pt-4">
             {!activeField && (
                <div className="grid grid-cols-4 gap-2 mb-4">
@@ -642,13 +606,11 @@ export default function App() {
                   <button onClick={handleOpenSchedule} className="flex flex-col items-center gap-1 p-2 rounded-xl transition bg-gray-50 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-black hover:text-white dark:hover:bg-white dark:hover:text-black"><Calendar size={24} /><span className="text-[10px] font-bold">Agendar</span></button>
                </div>
             )}
-
             {!activeField && (
               <button onClick={handleSearchRide} disabled={!destinationText} className="w-full bg-black dark:bg-white text-white dark:text-black font-bold py-4 rounded-xl hover:scale-[1.02] transition disabled:opacity-50 shadow-xl flex items-center justify-center gap-2">
                 <Search size={20} /> Buscar Viaje
               </button>
             )}
-            
             {!activeField && currentCooperative && <div className="mt-4 text-center"><p className="text-[10px] text-gray-400 uppercase tracking-widest">Operado por</p><p className="font-bold text-sm text-gray-600 dark:text-gray-400">{currentCooperative.name}</p></div>}
             {!activeField && currentCompany && <div className="mt-2 text-center"><span className="inline-flex items-center gap-1 bg-gray-100 dark:bg-gray-800 px-2 py-1 rounded text-[10px] font-bold uppercase text-gray-500"><Briefcase size={10} /> {currentCompany.name}</span></div>}
           </div>
@@ -702,7 +664,7 @@ export default function App() {
               <div className="flex justify-between items-center mb-6"><h2 className="text-xl font-bold flex items-center gap-2 dark:text-white"><Calendar size={24}/> Agendar Viaje</h2><button onClick={() => setIsSchedulingOpen(false)} className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full"><X size={20} className="dark:text-white"/></button></div>
               <div className="space-y-4 overflow-y-auto">
                  <div className="relative"><label className="block text-xs font-bold text-gray-500 mb-1 uppercase">Origen</label><div className="relative"><div className="absolute left-3 top-1/2 transform -translate-y-1/2 w-2 h-2 bg-green-500 rounded-full z-10"></div><input type="text" className="w-full bg-gray-50 dark:bg-gray-700 dark:text-white p-3 pl-8 rounded-xl font-bold text-sm pr-20 focus:outline-none focus:ring-2 focus:ring-black dark:focus:ring-white transition" value={scheduleForm.pickup} onChange={e => handleAddressInput(e.target.value, 'SCHEDULE_PICKUP')} onFocus={() => { setActiveField('SCHEDULE_PICKUP'); if (scheduleForm.pickup === 'Ubicación actual') { setScheduleForm(prev => ({ ...prev, pickup: '' })); } }} onBlur={() => { if (scheduleForm.pickup.trim() === '') { setScheduleForm(prev => ({ ...prev, pickup: 'Ubicación actual', pickupCoords: userLocation })); } }} placeholder="Dirección de recogida" /><div className="absolute right-2 top-1/2 transform -translate-y-1/2 flex items-center gap-1"><button onClick={() => { setScheduleForm(prev => ({...prev, pickup: 'Ubicación actual', pickupCoords: userLocation})); forceLocationRefresh(); }} className="p-1.5 bg-white dark:bg-black rounded-full text-black dark:text-white shadow-sm border border-gray-200 dark:border-gray-600 hover:scale-105 transition" title="Usar ubicación actual"><Locate size={14} /></button>{scheduleForm.pickupCoords && scheduleForm.pickup !== 'Ubicación actual' && (<div className="p-1.5 text-green-500"><MapPin size={16} /></div>)}</div></div>{activeField === 'SCHEDULE_PICKUP' && renderSavedPlacesSuggestions('SCHEDULE_PICKUP')}</div>
-                 <div className="relative"><label className="block text-xs font-bold text-gray-500 mb-1 uppercase">Destino</label><div className="relative"><div className="absolute left-3 top-1/2 transform -translate-y-1/2 w-2 h-2 bg-black dark:bg-white rounded-full z-10"></div><input type="text" className="w-full bg-gray-50 dark:bg-gray-700 dark:text-white p-3 pl-8 rounded-xl font-bold text-sm pr-10 focus:outline-none focus:ring-2 focus:ring-black dark:focus:ring-white transition" value={scheduleForm.destination} onChange={e => handleAddressInput(e.target.value, 'SCHEDULE_DESTINATION')} onFocus={() => setActiveField('SCHEDULE_DESTINATION')} placeholder="¿A dónde vas?" />{scheduleForm.destinationCoords && (<div className="absolute right-3 top-3 text-black dark:text-white"><MapPin size={16} /></div>)}</div>{activeField === 'SCHEDULE_DESTINATION' && renderSavedPlacesSuggestions('SCHEDULE_DESTINATION')}</div>
+                 <div className="relative"><label className="block text-xs font-bold text-gray-500 mb-1 uppercase">Destino</label><div className="relative"><div className="absolute left-3 top-1/2 transform -translate-y-1/2 w-2 h-2 bg-black dark:bg-white rounded-full z-10"></div><input type="text" className="w-full bg-gray-50 dark:bg-gray-700 dark:text-white p-3 pl-8 rounded-xl font-bold text-sm pr-10 focus:outline-none focus:ring-2 focus:ring-black dark:focus:ring-white transition" value={scheduleForm.destination} onChange={e => handleAddressInput(e.target.value, 'SCHEDULE_DESTINATION')} onFocus={() => setActiveField('SCHEDULE_DESTINATION')} placeholder="¿A dónde vamos?" />{scheduleForm.destinationCoords && (<div className="absolute right-3 top-3 text-black dark:text-white"><MapPin size={16} /></div>)}</div>{activeField === 'SCHEDULE_DESTINATION' && renderSavedPlacesSuggestions('SCHEDULE_DESTINATION')}</div>
                  <div className="grid grid-cols-2 gap-4"><div><label className="block text-xs font-bold text-gray-500 mb-1 uppercase">Fecha</label><input type="date" className="w-full bg-gray-50 dark:bg-gray-700 dark:text-white p-3 rounded-xl font-bold text-sm" value={scheduleForm.date} onChange={e => setScheduleForm({...scheduleForm, date: e.target.value})} /></div><div><label className="block text-xs font-bold text-gray-500 mb-1 uppercase">Hora</label><input type="time" className="w-full bg-gray-50 dark:bg-gray-700 dark:text-white p-3 rounded-xl font-bold text-sm" value={scheduleForm.time} onChange={e => setScheduleForm({...scheduleForm, time: e.target.value})} /></div></div>
                  <div><label className="block text-xs font-bold text-gray-500 mb-1 uppercase">Observaciones</label><textarea className="w-full bg-gray-50 dark:bg-gray-700 dark:text-white p-3 rounded-xl font-bold text-sm resize-none h-20" placeholder="Cantidad de personas, maletas, mascotas..." value={scheduleForm.notes} onChange={e => setScheduleForm({...scheduleForm, notes: e.target.value})}></textarea></div>
                  <button className="w-full bg-black dark:bg-white text-white dark:text-black py-4 rounded-xl font-bold mt-4 shadow-lg" onClick={handleConfirmSchedule}>Confirmar Reserva</button>
