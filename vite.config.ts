@@ -9,6 +9,9 @@ export default defineConfig(({ mode }) => {
 
   return {
     plugins: [react()],
+    // Use relative asset paths so the Capacitor Android build (file:// scheme)
+    // can load JS/CSS without 404s that cause a white screen.
+    base: './',
     build: {
       outDir: 'dist',
       rollupOptions: {
