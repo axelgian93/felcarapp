@@ -1,0 +1,62 @@
+groups:
+  - name: eta-alerts
+    rules:
+      - alert: ETAHighErrorRate
+        expr: sum(rate(eta_http_requests_total{status=~"5.."}[5m])) / sum(rate(eta_http_requests_total[5m])) > 0.02
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "ETA error rate alta (>2%)"
+          description: "Error rate de ETA supera 2% en 5m."
+      - alert: ETAP90LatencyHigh
+        expr: histogram_quantile(0.9, rate(eta_http_request_duration_seconds_bucket[5m])) > 1
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "ETA latencia p90 alta"
+          description: "p90 de ETA > 1s en 5m."
+
+  - name: proxy-alerts
+    rules:
+      - alert: ProxyHighErrorRate
+        expr: sum(rate(proxy_http_requests_total{status=~"5.."}[5m])) / sum(rate(proxy_http_requests_total[5m])) > 0.02
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Proxy error rate alta (>2%)"
+          description: "Error rate de proxy supera 2% en 5m."
+      - alert: ProxyP90LatencyHigh
+        expr: histogram_quantile(0.9, rate(proxy_http_request_duration_seconds_bucket[5m])) > 1
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Proxy latencia p90 alta"
+          description: "p90 de proxy > 1s en 5m."
+
+  - name: uptime-alerts
+    rules:
+      - alert: ETAHealthDown
+        expr: probe_success{job="eta"} == 0
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "ETA health caído"
+      - alert: OSRMDown
+        expr: up{job="osrm"} == 0
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "OSRM caído"
+      - alert: AppDown
+        expr: up{job="app"} == 0
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Frontend caído"

@@ -1,5 +1,5 @@
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useLayoutEffect, lazy, Suspense } from 'react';
 import { 
   Map as MapIcon, MapPin, Home, Briefcase, Heart, Bell, Menu, Sun, Moon, 
   DollarSign, Clock, History, Power, Car, X, Calendar, Locate, Search, 
@@ -7,16 +7,18 @@ import {
 } from 'lucide-react';
 import { MapBackground } from './components/MapBackground';
 import { AuthScreen } from './components/AuthScreen';
-import { AdminPanel } from './components/AdminPanel';
 import { ProfileMenu } from './components/ProfileMenu';
-import { TripHistory } from './components/TripHistory';
-import { SavedPlacesModal } from './components/SavedPlacesModal';
-import { PaymentMethodsModal } from './components/PaymentMethodsModal';
-import { ChangePasswordModal } from './components/ChangePasswordModal';
-import { ScheduledRidesModal } from './components/ScheduledRidesModal';
-import { DriverEarningsModal } from './components/DriverEarningsModal';
-import { NotificationsModal } from './components/NotificationsModal';
-import { HelpCenterModal } from './components/HelpCenterModal';
+
+// Lazy-loaded modales/paneles pesados para reducir el bundle inicial
+const AdminPanel = lazy(() => import('./components/AdminPanel').then(m => ({ default: m.AdminPanel })));
+const TripHistory = lazy(() => import('./components/TripHistory').then(m => ({ default: m.TripHistory })));
+const SavedPlacesModal = lazy(() => import('./components/SavedPlacesModal').then(m => ({ default: m.SavedPlacesModal })));
+const PaymentMethodsModal = lazy(() => import('./components/PaymentMethodsModal').then(m => ({ default: m.PaymentMethodsModal })));
+const ChangePasswordModal = lazy(() => import('./components/ChangePasswordModal').then(m => ({ default: m.ChangePasswordModal })));
+const ScheduledRidesModal = lazy(() => import('./components/ScheduledRidesModal').then(m => ({ default: m.ScheduledRidesModal })));
+const DriverEarningsModal = lazy(() => import('./components/DriverEarningsModal').then(m => ({ default: m.DriverEarningsModal })));
+const NotificationsModal = lazy(() => import('./components/NotificationsModal').then(m => ({ default: m.NotificationsModal })));
+const HelpCenterModal = lazy(() => import('./components/HelpCenterModal').then(m => ({ default: m.HelpCenterModal })));
 
 import { useTheme } from './src/context/ThemeContext';
 import { AuthService } from './src/services/authService';
@@ -27,12 +29,14 @@ import { CooperativeService } from './src/services/cooperativeService';
 import { CompanyService } from './src/services/companyService';
 import { PlacesService } from './src/services/placesService';
 import { getRideEstimates } from './services/geminiService';
+import { fetchEta, EtaResult } from './services/etaService';
 
 import { 
   User, UserRole, RideStatus, Location, Driver, RideOption, ServiceType, 
   TripHistoryItem, Cooperative, Company, AccountStatus, PaymentMethod 
 } from './types';
 import { auth } from './src/firebaseConfig';
+import { onAuthStateChanged } from 'firebase/auth';
 
 export default function App() {
   const { theme, toggleTheme } = useTheme();
@@ -88,6 +92,16 @@ export default function App() {
   const [cooperatives, setCooperatives] = useState<Cooperative[]>([]);
   const [currentCooperative, setCurrentCooperative] = useState<Cooperative | null>(null);
   const [currentCompany, setCurrentCompany] = useState<Company | null>(null);
+  const [routeEta, setRouteEta] = useState<EtaResult | null>(null);
+
+  const formatEtaRange = (eta?: EtaResult | null) => {
+    if (!eta?.etaMinutes) return null;
+    const base = eta.etaMinutes;
+    const delta = Math.max(1, Math.round(base * 0.15));
+    const low = Math.max(1, base - delta);
+    const high = base + delta;
+    return `${low}-${high} min`;
+  };
 
   // Modals State
   const [isProfileOpen, setIsProfileOpen] = useState(false);
@@ -112,6 +126,10 @@ export default function App() {
       time: '',
       notes: ''
   });
+
+  // UI overlay height tracking to ajustar padding dinámico del mapa
+  const overlayRef = useRef<HTMLDivElement | null>(null);
+  const [uiBottomPadding, setUiBottomPadding] = useState(260);
 
   const simulationIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -187,7 +205,7 @@ export default function App() {
   // --- EFFECTS ---
   useEffect(() => {
     // Guidelines: Fix for modular auth error by using compat style auth instance
-    const unsubscribe = auth.onAuthStateChanged(async (firebaseUser) => {
+    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       setIsLoadingAuth(true);
       if (firebaseUser) {
         try {
@@ -221,6 +239,14 @@ export default function App() {
     });
     return () => unsubscribe();
   }, []);
+
+  // Measure overlay height whenever layout changes to adjust map padding
+  useLayoutEffect(() => {
+    if (overlayRef.current) {
+      const rect = overlayRef.current.getBoundingClientRect();
+      setUiBottomPadding(Math.max(220, Math.round(rect.height + 80)));
+    }
+  }, [status, activeField, isPickingOnMap, isSchedulingOpen, isHistoryOpen, isPaymentModalOpen, isPlacesModalOpen, isHelpModalOpen, isNotificationsOpen, isDriverEarningsOpen, isScheduledRidesListOpen, rideOptions.length]);
 
   // Data Subscriptions
   useEffect(() => {
@@ -311,14 +337,84 @@ export default function App() {
       PlacesService.addRecentPlace(place);
       setRecentPlaces(PlacesService.getRecentPlaces());
 
-      if (type === 'PICKUP') { setPickupText(place.address || ''); setPickupLocation(place); } 
-      else if (type === 'DESTINATION') { setDestinationText(place.address || ''); setDestinationLocation(place); }
+      if (type === 'PICKUP') { 
+        setPickupText(place.address || ''); 
+        setPickupLocation(place); 
+      } 
+      else if (type === 'DESTINATION') { 
+        setDestinationText(place.address || ''); 
+        setDestinationLocation(place); 
+        // Si no hay pickup definido, asumimos ubicación actual para que el mapa trace ruta
+        if (!pickupLocation) { 
+          setPickupLocation(userLocation); 
+          setPickupText('Ubicación actual'); 
+        }
+      }
       else if (type === 'SCHEDULE_PICKUP') { setScheduleForm(prev => ({ ...prev, pickup: place.address || '', pickupCoords: place })); }
       else if (type === 'SCHEDULE_DESTINATION') { setScheduleForm(prev => ({ ...prev, destination: place.address || '', destinationCoords: place })); }
       
       setActiveField(null); 
       setAddressSuggestions([]);
   };
+
+  // ETA auto-cálculo cuando hay origen y destino
+  useEffect(() => {
+    const loadEta = async () => {
+      if (!pickupLocation || !destinationLocation) { setRouteEta(null); return; }
+      const eta = await fetchEta(pickupLocation.lat, pickupLocation.lng, destinationLocation.lat, destinationLocation.lng, selectedServiceType);
+      setRouteEta(eta);
+    };
+    loadEta();
+  }, [pickupLocation?.lat, pickupLocation?.lng, destinationLocation?.lat, destinationLocation?.lng, selectedServiceType]);
+
+  // ETA en tiempo real durante asignación y viaje
+  useEffect(() => {
+    let active = true;
+    let timer: ReturnType<typeof setInterval> | null = null;
+
+    const tick = async () => {
+      if (!assignedDriver) return;
+      try {
+        if (status === RideStatus.DRIVER_ASSIGNED && pickupLocation) {
+          const eta = await fetchEta(assignedDriver.coords.lat, assignedDriver.coords.lng, pickupLocation.lat, pickupLocation.lng, selectedServiceType);
+          if (active) {
+            setRouteEta(eta);
+            if (eta && (eta.distanceKm <= 0.2 || eta.etaMinutes <= 1)) { if (timer) { clearInterval(timer); timer = null; } }
+          }
+        } else if (status === RideStatus.IN_PROGRESS && destinationLocation) {
+          const start = assignedDriver.coords || userLocation;
+          const eta = await fetchEta(start.lat, start.lng, destinationLocation.lat, destinationLocation.lng, selectedServiceType);
+          if (active) {
+            setRouteEta(eta);
+            if (eta && (eta.distanceKm <= 0.2 || eta.etaMinutes <= 1)) { if (timer) { clearInterval(timer); timer = null; } }
+          }
+        }
+      } catch (_) {
+        if (active) setRouteEta(null);
+      }
+    };
+
+    if ((status === RideStatus.DRIVER_ASSIGNED && pickupLocation) || (status === RideStatus.IN_PROGRESS && destinationLocation)) {
+      tick();
+      timer = setInterval(tick, 20000);
+    }
+
+    return () => {
+      active = false;
+      if (timer) clearInterval(timer);
+    };
+  }, [
+    status,
+    assignedDriver?.coords.lat,
+    assignedDriver?.coords.lng,
+    pickupLocation?.lat,
+    pickupLocation?.lng,
+    destinationLocation?.lat,
+    destinationLocation?.lng,
+    selectedServiceType,
+    userLocation.lat,
+    userLocation.lng
+  ]);
 
   const handleSearchRide = async () => {
      if (!pickupLocation || !destinationLocation) {
@@ -334,7 +430,9 @@ export default function App() {
            pickupLocation.lng,
            selectedServiceType
         );
-        setRideOptions(currentCooperative ? options.map(opt => ({...opt, price: opt.price})) : options);
+        const etaMinutes = routeEta?.etaMinutes;
+        const optionsWithEta = etaMinutes ? options.map(opt => ({ ...opt, eta: etaMinutes })) : options;
+        setRideOptions(currentCooperative ? optionsWithEta.map(opt => ({...opt, price: opt.price})) : optionsWithEta);
      } catch (e) {
         showNotification("Error calculando tarifas");
         setStatus(RideStatus.IDLE);
@@ -491,7 +589,7 @@ export default function App() {
   return (
     <div className="h-full w-full relative flex flex-col font-sans bg-white dark:bg-gray-900 text-slate-900 dark:text-white overflow-hidden">
       <div className="absolute inset-0 z-0">
-        <MapBackground userLocation={userLocation} pickupLocation={pickupLocation || undefined} destinationLocation={destinationLocation} availableDrivers={availableDrivers} assignedDriver={assignedDriver || undefined} isSearching={status === RideStatus.SEARCHING} isPickingOnMap={isPickingOnMap} status={status} onCenterChange={(lat, lng) => setMapCenterCoords({lat, lng})} onStartPickDestination={() => { setIsPickingOnMap(true); setPickingTarget('DESTINATION'); }} onLocate={forceLocationRefresh} gpsSignal={gpsSignal} />
+        <MapBackground userLocation={userLocation} pickupLocation={pickupLocation || undefined} destinationLocation={destinationLocation} availableDrivers={availableDrivers} assignedDriver={assignedDriver || undefined} isSearching={status === RideStatus.SEARCHING} isPickingOnMap={isPickingOnMap} status={status} onCenterChange={(lat, lng) => setMapCenterCoords({lat, lng})} onStartPickDestination={() => { setIsPickingOnMap(true); setPickingTarget('DESTINATION'); }} onLocate={forceLocationRefresh} gpsSignal={gpsSignal} uiBottomPadding={uiBottomPadding} />
       </div>
 
       {notification && <div className="absolute top-24 left-1/2 transform -translate-x-1/2 bg-black/80 dark:bg-white/90 backdrop-blur text-white dark:text-black px-6 py-3 rounded-full shadow-2xl z-[60] flex items-center gap-2 animate-bounce-in w-max max-w-[90%]"><Bell size={16} className="text-yellow-400 dark:text-blue-600 shrink-0" /><span className="text-sm font-medium truncate">{notification}</span></div>}
@@ -564,7 +662,7 @@ export default function App() {
       )}
 
       {currentUser.role === UserRole.RIDER && status === RideStatus.IDLE && !isPickingOnMap && (
-        <div className={`absolute bottom-0 w-full bg-white dark:bg-gray-900 shadow-2xl transition-all duration-300 ease-in-out flex flex-col ${activeField ? 'h-full top-0 rounded-none z-[60]' : 'rounded-t-3xl z-30'}`}>
+        <div ref={overlayRef} className={`absolute bottom-0 w-full bg-white dark:bg-gray-900 shadow-2xl transition-all duration-300 ease-in-out flex flex-col ${activeField ? 'h-full top-0 rounded-none z-[60]' : 'rounded-t-3xl z-30'}`}>
           <div className={`flex-none bg-white dark:bg-gray-900 z-50 ${activeField ? 'pt-20 px-6 pb-2' : 'p-6 pb-0'}`}>
              {activeField && (
                <div className="flex items-center dark:text-white mb-4">
@@ -622,7 +720,7 @@ export default function App() {
            <div className="p-4 border-b border-gray-100 dark:border-gray-800 flex items-center gap-3"><button onClick={resetApp} className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full"><X size={20} className="dark:text-white"/></button><h3 className="font-bold dark:text-white">Elige tu viaje</h3></div>
            <div className="max-h-[35vh] overflow-y-auto p-4 space-y-3">
              {rideOptions.map((opt) => (
-                 <div key={opt.id} onClick={() => setSelectedRide(opt)} className={`flex items-center p-4 rounded-xl border-2 cursor-pointer transition ${selectedRide?.id === opt.id ? 'border-black dark:border-white bg-gray-50 dark:bg-gray-800' : 'border-transparent hover:bg-gray-50 dark:hover:bg-gray-800'}`}><div className="flex-grow"><div className="flex justify-between items-center dark:text-white"><h4 className="font-bold text-lg">{opt.name}</h4><span className="font-bold text-lg">{opt.currency}{opt.price.toFixed(2)}</span></div><p className="text-xs text-gray-500">{opt.eta} min • {opt.duration} min viaje</p></div></div>
+                 <div key={opt.id} onClick={() => setSelectedRide(opt)} className={`flex items-center p-4 rounded-xl border-2 cursor-pointer transition ${selectedRide?.id === opt.id ? 'border-black dark:border-white bg-gray-50 dark:bg-gray-800' : 'border-transparent hover:bg-gray-50 dark:hover:bg-gray-800'}`}><div className="flex-grow"><div className="flex justify-between items-center dark:text-white"><h4 className="font-bold text-lg">{opt.name}</h4><span className="font-bold text-lg">{opt.currency}{opt.price.toFixed(2)}</span></div><p className="text-xs text-gray-500">{formatEtaRange(routeEta) || `${opt.eta} min`} • {opt.duration} min viaje {routeEta && routeEta.confidence < 0.5 && <span className="ml-2 px-2 py-0.5 rounded-full text-[10px] bg-yellow-100 text-yellow-700 font-bold uppercase">estimación baja</span>}</p></div></div>
              ))}
            </div>
            <div className="p-6 border-t border-gray-100 dark:border-gray-800 bg-white dark:bg-gray-900 pb-8 space-y-4"><button onClick={handleRequestRide} disabled={!selectedRide} className="w-full bg-black dark:bg-white text-white dark:text-black font-bold py-4 rounded-xl shadow-xl hover:scale-[1.02] transition disabled:opacity-50">Confirmar {selectedRide?.name}</button></div>
@@ -630,7 +728,7 @@ export default function App() {
       )}
 
       {(status === RideStatus.SEARCHING || status === RideStatus.DRIVER_ASSIGNED || status === RideStatus.IN_PROGRESS || status === RideStatus.COMPLETED) && (
-        <div className="absolute bottom-0 w-full bg-white dark:bg-gray-900 rounded-t-3xl shadow-2xl z-30 animate-slide-up">
+        <div ref={overlayRef} className="absolute bottom-0 w-full bg-white dark:bg-gray-900 rounded-t-3xl shadow-2xl z-30 animate-slide-up">
           {status === RideStatus.SEARCHING && (
              <div className="p-8 text-center dark:text-white"><div className="w-16 h-16 bg-gray-100 dark:bg-gray-800 rounded-full mx-auto mb-4 flex items-center justify-center animate-pulse"><Search size={32} /></div><h3 className="font-bold text-xl mb-2">Buscando conductor...</h3><button onClick={resetApp} className="w-full py-3 rounded-xl border border-gray-200 dark:border-gray-700 text-red-500 font-bold text-sm hover:bg-red-50 dark:hover:bg-red-900/20">Cancelar</button></div>
           )}
@@ -639,6 +737,14 @@ export default function App() {
                 <div className="bg-black dark:bg-gray-800 text-white p-4 px-6 flex items-center justify-between"><span className="text-lg font-bold">{status === RideStatus.IN_PROGRESS ? 'En Viaje' : 'Conductor Asignado'}</span><span className="font-bold text-lg">${selectedRide?.price.toFixed(2) || incomingRequest?.price.toFixed(2)}</span></div>
                 <div className="p-6 dark:text-white">
                    <div className="flex items-center gap-4 mb-6"><img src={displayUser.photoUrl} className="w-16 h-16 rounded-full border-4 border-white dark:border-gray-700 shadow-lg object-cover" /><div><h3 className="font-bold text-xl">{displayUser.name}</h3>{currentUser.role === UserRole.RIDER && assignedDriver && <p className="text-sm text-gray-500">{assignedDriver.carModel} • {assignedDriver.plate}</p>}</div></div>
+                   {currentUser.role === UserRole.RIDER && routeEta && (
+                     <div className="mb-4 flex items-center gap-2 text-sm text-gray-600 dark:text-gray-300">
+                        <ClockIcon size={16} />
+                        <span className="font-bold">{formatEtaRange(routeEta) || `${routeEta.etaMinutes} min`}</span>
+                        {routeEta.confidence < 0.5 && <span className="text-[10px] px-2 py-1 bg-yellow-100 text-yellow-700 rounded-full uppercase font-bold">estimación baja</span>}
+                        <span className="text-xs text-gray-400 dark:text-gray-500">{status === RideStatus.DRIVER_ASSIGNED ? 'a la recogida' : 'al destino'}</span>
+                     </div>
+                   )}
                    {currentUser.role === UserRole.RIDER && status === RideStatus.DRIVER_ASSIGNED && tripOtp && <div className="bg-blue-50 dark:bg-blue-900/30 border border-blue-100 dark:border-blue-800 rounded-xl p-4 mb-6 text-center"><p className="text-blue-600 dark:text-blue-400 text-xs font-bold uppercase mb-1">Código de Seguridad</p><p className="text-3xl font-black text-blue-900 dark:text-white tracking-[0.5em]">{tripOtp}</p></div>}
                    <div className="grid grid-cols-2 gap-3 mb-4"><button onClick={() => showNotification("Chat no disponible")} className="bg-gray-100 dark:bg-gray-800 py-3 rounded-xl font-bold flex items-center justify-center gap-2"><MessageSquare size={20} /> Chat</button><button onClick={handleLogout} className="bg-gray-100 dark:bg-gray-800 py-3 rounded-xl font-bold flex items-center justify-center gap-2 text-red-500"><LogOut size={20} /> Salir</button></div>
                    {currentUser.role === UserRole.DRIVER && status === RideStatus.DRIVER_ASSIGNED && (<div className="flex gap-2">{showOtpInput ? <><input type="text" value={driverOtpInput} onChange={e=>setDriverOtpInput(e.target.value)} className="flex-grow bg-gray-100 dark:bg-gray-800 rounded-xl px-4 text-center font-bold" placeholder="PIN" /><button onClick={handleVerifyStartTrip} className="bg-green-600 text-white px-6 rounded-xl font-bold"><CheckCircle2/></button></> : <button onClick={() => setShowOtpInput(true)} className="w-full bg-black dark:bg-white text-white dark:text-black py-4 rounded-xl font-bold flex items-center justify-center gap-2"><Lock size={20}/> Iniciar Viaje</button>}</div>)}
@@ -650,14 +756,16 @@ export default function App() {
       )}
 
       <ProfileMenu isOpen={isProfileOpen} onClose={() => setIsProfileOpen(false)} user={currentUser} onLogout={handleLogout} onOpenHistory={() => {setIsProfileOpen(false); setHistoryInitialTab('LIST'); setIsHistoryOpen(true);}} onOpenPayments={() => {setIsProfileOpen(false); setIsPaymentModalOpen(true);}} onOpenSavedPlaces={() => {setIsProfileOpen(false); setIsPlacesModalOpen(true);}} onOpenHelp={() => {setIsProfileOpen(false); setIsHelpModalOpen(true);}} onOpenReports={handleOpenReports} onChangePassword={() => {setIsProfileOpen(false); setIsChangePasswordOpen(true);}} onOpenScheduledRides={() => {setIsProfileOpen(false); setIsScheduledRidesListOpen(true);}} />
-      <TripHistory isOpen={isHistoryOpen} onClose={() => setIsHistoryOpen(false)} history={tripHistory} userRole={currentUser.role} initialTab={historyInitialTab} onBack={() => { setIsHistoryOpen(false); setIsProfileOpen(true); }} />
-      {isPlacesModalOpen && <SavedPlacesModal isOpen={isPlacesModalOpen} onClose={() => {setIsPlacesModalOpen(false); setTempSavedPlaceLocation(null);}} user={currentUser} onSelect={(loc, type) => handleSelectLocation(loc, type)} onPickFromMap={handlePickSavedPlace} prefilledLocation={tempSavedPlaceLocation} />}
-      {isPaymentModalOpen && <PaymentMethodsModal isOpen={isPaymentModalOpen} onClose={() => setIsPaymentModalOpen(false)} user={currentUser} onSelectMethod={(m) => setSelectedPaymentMethod(m)} />}
-      <ChangePasswordModal isOpen={isChangePasswordOpen} onClose={() => setIsChangePasswordOpen(false)} onSuccess={() => showNotification("Contraseña actualizada")} />
-      <ScheduledRidesModal isOpen={isScheduledRidesListOpen} onClose={() => setIsScheduledRidesListOpen(false)} user={currentUser} />
-      <NotificationsModal isOpen={isNotificationsOpen} onClose={() => setIsNotificationsOpen(false)} />
-      <DriverEarningsModal isOpen={isDriverEarningsOpen} onClose={() => setIsDriverEarningsOpen(false)} tripHistory={tripHistory} initialTab={driverEarningsTab} />
-      <HelpCenterModal isOpen={isHelpModalOpen} onClose={() => setIsHelpModalOpen(false)} user={currentUser} />
+      <Suspense fallback={null}>
+        <TripHistory isOpen={isHistoryOpen} onClose={() => setIsHistoryOpen(false)} history={tripHistory} userRole={currentUser.role} initialTab={historyInitialTab} onBack={() => { setIsHistoryOpen(false); setIsProfileOpen(true); }} />
+        {isPlacesModalOpen && <SavedPlacesModal isOpen={isPlacesModalOpen} onClose={() => {setIsPlacesModalOpen(false); setTempSavedPlaceLocation(null);}} user={currentUser} onSelect={(loc, type) => handleSelectLocation(loc, type)} onPickFromMap={handlePickSavedPlace} prefilledLocation={tempSavedPlaceLocation} />}
+        {isPaymentModalOpen && <PaymentMethodsModal isOpen={isPaymentModalOpen} onClose={() => setIsPaymentModalOpen(false)} user={currentUser} onSelectMethod={(m) => setSelectedPaymentMethod(m)} />}
+        <ChangePasswordModal isOpen={isChangePasswordOpen} onClose={() => setIsChangePasswordOpen(false)} onSuccess={() => showNotification("Contraseña actualizada")} />
+        <ScheduledRidesModal isOpen={isScheduledRidesListOpen} onClose={() => setIsScheduledRidesListOpen(false)} user={currentUser} />
+        <NotificationsModal isOpen={isNotificationsOpen} onClose={() => setIsNotificationsOpen(false)} />
+        <DriverEarningsModal isOpen={isDriverEarningsOpen} onClose={() => setIsDriverEarningsOpen(false)} tripHistory={tripHistory} initialTab={driverEarningsTab} />
+        <HelpCenterModal isOpen={isHelpModalOpen} onClose={() => setIsHelpModalOpen(false)} user={currentUser} />
+      </Suspense>
       {isSchedulingOpen && (
         <div className="absolute inset-0 z-[80] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 animate-fade-in">
            <div className="bg-white dark:bg-gray-800 w-full max-w-sm rounded-3xl p-6 shadow-xl animate-slide-up flex flex-col max-h-[90vh]">

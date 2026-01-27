@@ -1,10 +1,10 @@
-
-// @google/genai Coding Guidelines: Using direct process.env.API_KEY and gemini-3-flash-preview
+// Gemini service: usa proxy backend si se configura; si no hay clave usa fallbacks locales.
 import { GoogleGenAI, Type } from "@google/genai";
 import { RideOption, ServiceType } from "../types";
 
-// Initialize Gemini Client once with direct env variable
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+const apiKey = import.meta.env.VITE_GEMINI_API_KEY as string | undefined;
+const proxyUrl = import.meta.env.VITE_GEMINI_PROXY_URL as string | undefined;
+const ai = apiKey ? new GoogleGenAI({ apiKey }) : null;
 
 export const getRideEstimates = async (
   origin: string,
@@ -13,6 +13,22 @@ export const getRideEstimates = async (
   currentLng: number,
   serviceType: ServiceType = ServiceType.RIDE
 ): Promise<RideOption[]> => {
+  // 1) Proxy backend si existe
+  if (proxyUrl) {
+    try {
+      const resp = await fetch(`${proxyUrl.replace(/\/$/, '')}/api/estimate`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ origin, destination, currentLat, currentLng, serviceType })
+      });
+      if (resp.ok) return await resp.json() as RideOption[];
+    } catch (err) {
+      console.warn("Proxy Gemini falló, usando cliente o fallback", err);
+    }
+  }
+
+  // 2) Sin API key -> fallbacks locales
+  if (!ai) return getFallbackOptions(serviceType);
   
   const schema = {
     type: Type.ARRAY,
@@ -51,7 +67,6 @@ export const getRideEstimates = async (
   }
 
   try {
-    // Guidelines: Using ai.models.generateContent directly with model name and prompt
     const response = await ai.models.generateContent({
       model: 'gemini-3-flash-preview',
       contents: `User location: ${currentLat}, ${currentLng} (approx ${origin}). 
@@ -71,28 +86,27 @@ export const getRideEstimates = async (
     return JSON.parse(text) as RideOption[];
   } catch (error) {
     console.error("Error getting estimates from Gemini:", error);
-    // Fallback data for Guayaquil
-    if (serviceType === ServiceType.DELIVERY) {
-      return [
-        { id: "del-1", name: "Moto Flash", price: 2.50, currency: "$", eta: 5, duration: 15, description: "Doc. y Paquetes pequeños", capacity: "10kg" },
-        { id: "del-2", name: "Auto Envíos", price: 4.00, currency: "$", eta: 8, duration: 20, description: "Cajas medianas", capacity: "Maletero" }
-      ];
-    }
-    if (serviceType === ServiceType.HOURLY) {
-      return [
-        { id: "hr-1", name: "1 Hora", price: 12.00, currency: "$", eta: 5, duration: 60, description: "Servicio por tiempo", capacity: "4 pax" },
-        { id: "hr-3", name: "3 Horas", price: 30.00, currency: "$", eta: 5, duration: 180, description: "Servicio por tiempo", capacity: "4 pax" }
-      ];
-    }
-    return [
-      { id: "std-1", name: "Económico", price: 2.50, currency: "$", eta: 3, duration: 15, description: "Auto compacto", capacity: "4" },
-      { id: "std-2", name: "Confort", price: 3.50, currency: "$", eta: 5, duration: 15, description: "Sedán con A/C", capacity: "4" }
-    ];
+    return getFallbackOptions(serviceType);
   }
 };
 
 export const getDestinationCoordinates = async (destination: string, nearbyLat: number, nearbyLng: number): Promise<{lat: number, lng: number} | null> => {
+   // Proxy primero
+   if (proxyUrl) {
+     try {
+       const resp = await fetch(`${proxyUrl.replace(/\/$/, '')}/api/coords`, {
+         method: 'POST',
+         headers: { 'Content-Type': 'application/json' },
+         body: JSON.stringify({ destination, nearbyLat, nearbyLng })
+       });
+       if (resp.ok) return await resp.json();
+     } catch (err) {
+       console.warn("Proxy coords fallo, usando cliente o fallback", err);
+     }
+   }
+
    try {
+     if (!ai) return { lat: nearbyLat + 0.01, lng: nearbyLng + 0.01 };
      const response = await ai.models.generateContent({
        model: 'gemini-3-flash-preview',
        contents: `I am at ${nearbyLat}, ${nearbyLng} (Guayaquil, EC). The user wants to go to "${destination}". 
@@ -117,3 +131,22 @@ export const getDestinationCoordinates = async (destination: string, nearbyLat: 
      return { lat: nearbyLat + 0.01, lng: nearbyLng + 0.01 };
    }
 };
+
+function getFallbackOptions(serviceType: ServiceType): RideOption[] {
+  if (serviceType === ServiceType.DELIVERY) {
+    return [
+      { id: "del-1", name: "Moto Flash", price: 2.50, currency: "$", eta: 5, duration: 15, description: "Doc. y Paquetes pequeños", capacity: "10kg" },
+      { id: "del-2", name: "Auto Envíos", price: 4.00, currency: "$", eta: 8, duration: 20, description: "Cajas medianas", capacity: "Maletero" }
+    ];
+  }
+  if (serviceType === ServiceType.HOURLY || serviceType === ServiceType.TRIP) {
+    return [
+      { id: "hr-1", name: "1 Hora", price: 12.00, currency: "$", eta: 5, duration: 60, description: "Servicio por tiempo", capacity: "4 pax" },
+      { id: "hr-3", name: "3 Horas", price: 30.00, currency: "$", eta: 5, duration: 180, description: "Servicio por tiempo", capacity: "4 pax" }
+    ];
+  }
+  return [
+    { id: "std-1", name: "Económico", price: 2.50, currency: "$", eta: 3, duration: 15, description: "Auto compacto", capacity: "4" },
+    { id: "std-2", name: "Confort", price: 3.50, currency: "$", eta: 5, duration: 15, description: "Sedán con A/C", capacity: "4" }
+  ];
+}

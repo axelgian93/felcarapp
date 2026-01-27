@@ -1,24 +1,25 @@
 
-// Using compat imports to resolve "no exported member" errors in environment
-import firebase from 'firebase/compat/app';
-import 'firebase/compat/auth';
-import 'firebase/compat/firestore';
+// Firebase SDK modular (v9+) setup
+import { initializeApp, getApps } from 'firebase/app';
+import { getAuth } from 'firebase/auth';
+import { getFirestore } from 'firebase/firestore';
 
+// IMPORTANT: values must come from environment variables (see .env.example)
+// Vite exposes them as import.meta.env.VITE_FIREBASE_*
 const firebaseConfig = {
-  apiKey: "AIzaSyCaXsnT65fiNp60adIJgDL7e-KC9BiLxtY",
-  authDomain: "felcar-app.firebaseapp.com",
-  projectId: "felcar-app",
-  storageBucket: "felcar-app.firebasestorage.app",
-  messagingSenderId: "285880772552",
-  appId: "1:285880772552:web:ad190b7110b255aae7c2fd",
-  measurementId: "G-H2GP3J01LW"
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
+  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
+  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
+  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
+  appId: import.meta.env.VITE_FIREBASE_APP_ID,
+  measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID
 };
 
-// Initialize Firebase
-const app = firebase.initializeApp(firebaseConfig);
+// Avoid duplicate init when hot reloading
+const app = getApps().length ? getApps()[0] : initializeApp(firebaseConfig);
 
-export const auth = firebase.auth();
-export const db = firebase.firestore();
+export const auth = getAuth(app);
+export const db = getFirestore(app);
 
-// Helper to check initialization
 export const isFirebaseInitialized = !!app;

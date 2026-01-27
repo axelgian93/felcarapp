@@ -1,0 +1,150 @@
+{
+  "id": null,
+  "uid": "felcar-obs",
+  "title": "Felcar Observability",
+  "timezone": "browser",
+  "schemaVersion": 39,
+  "version": 1,
+  "refresh": "30s",
+  "time": { "from": "now-6h", "to": "now" },
+  "panels": [
+    {
+      "type": "row",
+      "title": "ETA Service",
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 0 },
+      "collapsed": false,
+      "panels": []
+    },
+    {
+      "type": "stat",
+      "title": "ETA Error Rate (5m)",
+      "gridPos": { "h": 4, "w": 6, "x": 0, "y": 1 },
+      "targets": [
+        {
+          "expr": "sum(rate(eta_http_requests_total{status=~\"5..\"}[5m])) / sum(rate(eta_http_requests_total[5m]))",
+          "refId": "A"
+        }
+      ],
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "orientation": "horizontal", "colorMode": "value", "graphMode": "none" },
+      "fieldConfig": { "defaults": { "unit": "percentunit", "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }, { "color": "red", "value": 0.01 }] } }, "overrides": [] }
+    },
+    {
+      "type": "stat",
+      "title": "ETA Cache Hit Rate (5m)",
+      "gridPos": { "h": 4, "w": 6, "x": 6, "y": 1 },
+      "targets": [
+        {
+          "expr": "sum(rate(eta_cache_hits_total[5m])) / (sum(rate(eta_cache_hits_total[5m])) + sum(rate(eta_cache_misses_total[5m])))",
+          "refId": "A"
+        }
+      ],
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "orientation": "horizontal", "colorMode": "value", "graphMode": "none" },
+      "fieldConfig": { "defaults": { "unit": "percentunit" }, "overrides": [] }
+    },
+    {
+      "type": "gauge",
+      "title": "ETA p90 Latency (s)",
+      "gridPos": { "h": 8, "w": 6, "x": 12, "y": 1 },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.9, rate(eta_http_request_duration_seconds_bucket[5m]))",
+          "refId": "A"
+        }
+      ],
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "orientation": "vertical", "showThresholdLabels": false, "showThresholdMarkers": true },
+      "fieldConfig": { "defaults": { "unit": "s", "min": 0, "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }, { "color": "yellow", "value": 0.5 }, { "color": "red", "value": 1 }] } }, "overrides": [] }
+    },
+    {
+      "type": "graph",
+      "title": "ETA Latency p50/p90/p99",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 5 },
+      "targets": [
+        { "expr": "histogram_quantile(0.5, rate(eta_http_request_duration_seconds_bucket[5m]))", "refId": "A", "legendFormat": "p50" },
+        { "expr": "histogram_quantile(0.9, rate(eta_http_request_duration_seconds_bucket[5m]))", "refId": "B", "legendFormat": "p90" },
+        { "expr": "histogram_quantile(0.99, rate(eta_http_request_duration_seconds_bucket[5m]))", "refId": "C", "legendFormat": "p99" }
+      ],
+      "lines": true,
+      "linewidth": 2,
+      "fill": 1
+    },
+    {
+      "type": "graph",
+      "title": "OSRM Latency",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 5 },
+      "targets": [
+        { "expr": "histogram_quantile(0.9, rate(eta_osrm_duration_seconds_bucket[5m]))", "refId": "A", "legendFormat": "p90" },
+        { "expr": "histogram_quantile(0.5, rate(eta_osrm_duration_seconds_bucket[5m]))", "refId": "B", "legendFormat": "p50" }
+      ],
+      "lines": true,
+      "linewidth": 2,
+      "fill": 1
+    },
+    {
+      "type": "row",
+      "title": "Proxy Gemini",
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 13 },
+      "collapsed": false,
+      "panels": []
+    },
+    {
+      "type": "stat",
+      "title": "Proxy Error Rate (5m)",
+      "gridPos": { "h": 4, "w": 6, "x": 0, "y": 14 },
+      "targets": [
+        {
+          "expr": "sum(rate(proxy_http_requests_total{status=~\"5..\"}[5m])) / sum(rate(proxy_http_requests_total[5m]))",
+          "refId": "A"
+        }
+      ],
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "orientation": "horizontal", "colorMode": "value", "graphMode": "none" },
+      "fieldConfig": { "defaults": { "unit": "percentunit" }, "overrides": [] }
+    },
+    {
+      "type": "gauge",
+      "title": "Proxy p90 Latency (s)",
+      "gridPos": { "h": 8, "w": 6, "x": 6, "y": 14 },
+      "targets": [
+        { "expr": "histogram_quantile(0.9, rate(proxy_http_request_duration_seconds_bucket[5m]))", "refId": "A" }
+      ],
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "orientation": "vertical", "showThresholdLabels": false, "showThresholdMarkers": true },
+      "fieldConfig": { "defaults": { "unit": "s", "min": 0, "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }, { "color": "yellow", "value": 0.5 }, { "color": "red", "value": 1 }] } }, "overrides": [] }
+    },
+    {
+      "type": "graph",
+      "title": "Proxy Latency p50/p90",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 14 },
+      "targets": [
+        { "expr": "histogram_quantile(0.5, rate(proxy_http_request_duration_seconds_bucket[5m]))", "refId": "A", "legendFormat": "p50" },
+        { "expr": "histogram_quantile(0.9, rate(proxy_http_request_duration_seconds_bucket[5m]))", "refId": "B", "legendFormat": "p90" },
+        { "expr": "histogram_quantile(0.99, rate(proxy_http_request_duration_seconds_bucket[5m]))", "refId": "C", "legendFormat": "p99" }
+      ],
+      "lines": true,
+      "linewidth": 2,
+      "fill": 1
+    },
+    {
+      "type": "graph",
+      "title": "Proxy RPS",
+      "gridPos": { "h": 6, "w": 12, "x": 0, "y": 22 },
+      "targets": [
+        { "expr": "sum(rate(proxy_http_requests_total[1m]))", "refId": "A", "legendFormat": "rps" }
+      ],
+      "lines": true,
+      "linewidth": 2,
+      "fill": 1
+    },
+    {
+      "type": "graph",
+      "title": "ETA RPS",
+      "gridPos": { "h": 6, "w": 12, "x": 12, "y": 22 },
+      "targets": [
+        { "expr": "sum(rate(eta_http_requests_total[1m]))", "refId": "A", "legendFormat": "rps" }
+      ],
+      "lines": true,
+      "linewidth": 2,
+      "fill": 1
+    }
+  ],
+  "templating": { "list": [] },
+  "annotations": { "list": [] }
+}
