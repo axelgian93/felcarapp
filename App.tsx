@@ -316,6 +316,17 @@ export default function App() {
      }
   };
 
+  const handleResetPassword = async (email: string) => {
+     try {
+        setAuthError(null);
+        setAuthSuccess(null);
+        await AuthService.resetPassword(email);
+        setAuthSuccess("Revisa tu correo para restablecer tu contraseña.");
+     } catch (e: any) {
+        setAuthError(e.message || "No se pudo enviar el enlace de recuperación.");
+     }
+  };
+
   const handleLogout = async () => {
      await AuthService.logout();
      setCurrentUser(null);
@@ -586,7 +597,7 @@ export default function App() {
   };
 
   if (isLoadingAuth) return <div className="h-full w-full flex items-center justify-center bg-black text-white"><div className="animate-spin rounded-full h-12 w-12 border-t-2 border-white"></div></div>;
-  if (!currentUser) return <AuthScreen onLogin={handleLogin} onRegister={handleRegister} error={authError} successMessage={authSuccess} onClearError={() => { setAuthError(null); setAuthSuccess(null); }} />;
+  if (!currentUser) return <AuthScreen onLogin={handleLogin} onRegister={handleRegister} onResetPassword={handleResetPassword} error={authError} successMessage={authSuccess} onClearError={() => { setAuthError(null); setAuthSuccess(null); }} />;
   if (currentUser?.role === UserRole.ADMIN || currentUser?.role === UserRole.SUPERADMIN) {
     return <><AdminPanel users={allUsers} tripHistory={tripHistory} availableDrivers={availableDrivers} onApprove={handleApproveUser} onReject={handleRejectUser} onToggleStatus={handleToggleStatus} onDeleteUser={handleDeleteUser} onLogout={handleLogout} onChangePassword={() => setIsChangePasswordOpen(true)} currentUser={currentUser} cooperatives={cooperatives} /><ChangePasswordModal isOpen={isChangePasswordOpen} onClose={() => setIsChangePasswordOpen(false)} onSuccess={() => showNotification("Contraseña actualizada")} />{notification && <div className="absolute top-10 right-10 z-[100] bg-black text-white px-6 py-3 rounded-full shadow-2xl animate-bounce-in"><span className="text-sm font-bold">{notification}</span></div>}</>;
   }

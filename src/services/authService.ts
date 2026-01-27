@@ -5,6 +5,7 @@ import {
   signInWithEmailAndPassword, 
   signOut, 
   updatePassword, 
+  sendPasswordResetEmail,
   User as FirebaseUser 
 } from "firebase/auth";
 import { 
@@ -172,5 +173,9 @@ export const AuthService = {
     } else {
       throw new Error("No user logged in");
     }
+  },
+
+  resetPassword: async (email: string) => {
+    await sendPasswordResetEmail(auth, email);
   }
 };

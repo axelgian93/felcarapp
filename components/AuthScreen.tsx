@@ -6,6 +6,7 @@ import * as SecurityService from '../services/securityService';
 interface AuthScreenProps {
   onLogin: (email: string, password: string) => void;
   onRegister: (user: Omit<User, 'id' | 'status'>, password: string, coopCode: string) => void;
+  onResetPassword: (email: string) => void;
   error?: string | null;
   successMessage?: string | null;
   onClearError?: () => void;
@@ -20,11 +21,12 @@ const CAR_COLORS = [
   { name: 'Amarillo', hex: '#FBBF24', border: false },
 ];
 
-export const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin, onRegister, error, successMessage, onClearError }) => {
+export const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin, onRegister, onResetPassword, error, successMessage, onClearError }) => {
   const [isRegistering, setIsRegistering] = useState(false);
   const [selectedRole, setSelectedRole] = useState<UserRole>(UserRole.RIDER);
   const [localError, setLocalError] = useState<string | null>(null);
   const [showPassword, setShowPassword] = useState(false);
+  const [resetInfo, setResetInfo] = useState<string | null>(null);
   
   // Form State
   const [email, setEmail] = useState('');
@@ -44,6 +46,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin, onRegister, err
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLocalError(null);
+    setResetInfo(null);
     if (onClearError) onClearError();
     
     const cleanEmail = SecurityService.sanitizeInput(email).toLowerCase();
@@ -83,6 +86,19 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin, onRegister, err
     } else {
       onLogin(cleanEmail, password);
     }
+  };
+
+  const handleResetPassword = () => {
+    setLocalError(null);
+    setResetInfo(null);
+    if (onClearError) onClearError();
+
+    if (!email) {
+      setLocalError("Ingresa tu correo para recuperar la contraseña.");
+      return;
+    }
+    onResetPassword(email.toLowerCase().trim());
+    setResetInfo("Si el correo existe, te enviamos un enlace para restablecer la contraseña.");
   };
 
   return (
@@ -129,6 +145,12 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin, onRegister, err
             <div className="bg-green-500/10 border border-green-500/50 text-green-400 px-4 py-3 rounded-xl mb-4 text-sm flex items-center gap-2 animate-fade-in">
               <CheckCircle size={16} />
               {successMessage}
+            </div>
+          )}
+          {resetInfo && (
+            <div className="bg-blue-500/10 border border-blue-500/40 text-blue-300 px-4 py-3 rounded-xl mb-4 text-sm flex items-center gap-2">
+              <CheckCircle size={16} />
+              {resetInfo}
             </div>
           )}
           
@@ -290,6 +312,18 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin, onRegister, err
                 {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
               </button>
             </div>
+
+            {!isRegistering && (
+              <div className="flex justify-end">
+                <button
+                  type="button"
+                  onClick={handleResetPassword}
+                  className="text-xs text-blue-300 hover:text-blue-200 font-semibold"
+                >
+                  ¿Olvidaste tu contraseña?
+                </button>
+              </div>
+            )}
             
             <button
               type="submit"
