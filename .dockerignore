@@ -1,0 +1,8 @@
+.env
+.env.*
+node_modules
+dist
+npm-debug.log
+**/*.log
+docker/osrm-data
+docker/prometheus/data

@@ -5,6 +5,9 @@ import { Location, Driver, CarType, RideStatus } from '../types';
 import { MapPin, Locate } from 'lucide-react';
 import { useTheme } from '../src/context/ThemeContext';
 
+// Base OSRM endpoint: prefer local/proxy if provided, fallback to public demo
+const OSRM_BASE = (import.meta.env.VITE_OSRM_URL as string | undefined)?.replace(/\/$/, '') || 'https://router.project-osrm.org';
+
 // Fix for default leaflet marker icons
 const iconRetinaUrl = 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon-2x.png';
 const iconUrl = 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon.png';
@@ -77,6 +80,7 @@ interface MapBackgroundProps {
   onStartPickDestination?: () => void;
   onLocate?: () => void;
   gpsSignal?: number;
+  uiBottomPadding?: number;
 }
 
 export const MapBackground: React.FC<MapBackgroundProps> = ({ 
@@ -91,7 +95,8 @@ export const MapBackground: React.FC<MapBackgroundProps> = ({
   onCenterChange,
   onStartPickDestination,
   onLocate,
-  gpsSignal = 0
+  gpsSignal = 0,
+  uiBottomPadding = 0
 }) => {
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<L.Map | null>(null);
@@ -197,7 +202,7 @@ export const MapBackground: React.FC<MapBackgroundProps> = ({
       }
 
       if (hasPoints && bounds.isValid()) {
-          map.fitBounds(bounds, { padding: [80, 80], maxZoom: 16, animate: true, duration: 1 });
+          map.fitBounds(bounds, { padding: [140, 140], maxZoom: 12, animate: true, duration: 1 });
       }
 
   }, [status, assignedDriver?.coords.lat, assignedDriver?.coords.lng, pickupLocation, destinationLocation, isPickingOnMap]);
@@ -248,7 +253,7 @@ export const MapBackground: React.FC<MapBackgroundProps> = ({
 
     // Draw Route
     if (routeStart && routeEnd && !isPickingOnMap) {
-        drawRoute(map, routeStart, routeEnd, status, theme, routeLineRef, routeTooltipRef);
+        drawRoute(map, routeStart, routeEnd, status, theme, routeLineRef, routeTooltipRef, uiBottomPadding);
     } else {
         // Clear route if not valid
         if (routeLineRef.current) { routeLineRef.current.remove(); routeLineRef.current = null; }
@@ -345,13 +350,15 @@ async function drawRoute(
     status: RideStatus, 
     theme: string, 
     routeLineRef: React.MutableRefObject<L.Polyline | null>,
-    tooltipRef: React.MutableRefObject<L.Tooltip | null>
+    tooltipRef: React.MutableRefObject<L.Tooltip | null>,
+    uiBottomPadding: number
 ) {
     let lineColor = theme === 'dark' ? '#60a5fa' : 'black';
     if (status === RideStatus.DRIVER_ASSIGNED) lineColor = '#10b981';
 
     // Helper for Fallback (Straight Line)
     const drawFallback = () => {
+        const paddingBR: [number, number] = [140, 320 + uiBottomPadding];
         if (routeLineRef.current) {
             routeLineRef.current.setLatLngs([[start.lat, start.lng], [end.lat, end.lng]]);
             routeLineRef.current.setStyle({ dashArray: '10, 10', weight: 4, color: lineColor, opacity: 0.6 });
@@ -375,10 +382,16 @@ async function drawRoute(
                 .setContent(`${distKm} km`)
                 .addTo(map);
         }
+        // Ajustar vista para incluir ruta completa y la ciudad
+        if (routeLineRef.current) {
+            const bounds = routeLineRef.current.getBounds().extend([start.lat, start.lng]).extend([end.lat, end.lng]);
+            map.fitBounds(bounds, { paddingTopLeft: [140, 140], paddingBottomRight: paddingBR, maxZoom: 12 });
+        }
     };
 
     try {
-        const response = await fetch(`https://router.project-osrm.org/route/v1/driving/${start.lng},${start.lat};${end.lng},${end.lat}?overview=full&geometries=geojson`);
+        const paddingBR: [number, number] = [140, 320 + uiBottomPadding];
+        const response = await fetch(`${OSRM_BASE}/route/v1/driving/${start.lng},${start.lat};${end.lng},${end.lat}?overview=full&geometries=geojson`);
         
         if (!response.ok) throw new Error("Fetch failed");
         
@@ -408,9 +421,11 @@ async function drawRoute(
                 .addTo(map);
         }
 
-        // OPTIONAL: Fit bounds to the route geometry initially to show full path
-        // But we are using dynamic fitting in useEffect, so this might be redundant or conflict.
-        // Ideally, the useEffect should handle it.
+        // Ajustar vista al trazar la ruta completa
+        if (routeLineRef.current) {
+            const bounds = routeLineRef.current.getBounds().extend([start.lat, start.lng]).extend([end.lat, end.lng]);
+            map.fitBounds(bounds, { paddingTopLeft: [140, 140], paddingBottomRight: paddingBR, maxZoom: 12 });
+        }
 
     } catch (e) {
         drawFallback();

@@ -1,37 +1,36 @@
 
-// Guidelines: Using compat API to resolve "no exported member" errors
-import firebase from 'firebase/compat/app';
 import { auth, db } from "../firebaseConfig";
+import { 
+  createUserWithEmailAndPassword, 
+  signInWithEmailAndPassword, 
+  signOut, 
+  updatePassword, 
+  User as FirebaseUser 
+} from "firebase/auth";
+import { 
+  doc, 
+  getDoc, 
+  setDoc, 
+  serverTimestamp 
+} from "firebase/firestore";
 import { User, UserRole, AccountStatus } from "../../types";
-// Import mock data to seed DB if profile missing
 import { INITIAL_USERS, INITIAL_COOPERATIVES } from "../mockData";
 
 // Helper to remove undefined fields recursively to prevent Firestore errors
 const cleanFirestoreData = (obj: any): any => {
   if (obj === undefined) return undefined;
   if (obj === null) return null;
-  
-  if (typeof obj === 'object' && typeof obj.toMillis === 'function') {
-      return obj;
-  }
-  
+  if (typeof obj === 'object' && typeof (obj as any).toMillis === 'function') return obj;
   if (obj instanceof Date) return obj;
-  
-  if (Array.isArray(obj)) {
-    return obj.map(v => cleanFirestoreData(v)).filter(v => v !== undefined);
-  }
-  
+  if (Array.isArray(obj)) return obj.map(v => cleanFirestoreData(v)).filter(v => v !== undefined);
   if (typeof obj === 'object') {
     const newObj: any = {};
     Object.keys(obj).forEach(key => {
-      const val = cleanFirestoreData(obj[key]);
-      if (val !== undefined) {
-        newObj[key] = val;
-      }
+      const val = cleanFirestoreData((obj as any)[key]);
+      if (val !== undefined) newObj[key] = val;
     });
     return newObj;
   }
-  
   return obj;
 };
 
@@ -58,12 +57,10 @@ const mapDocToUser = (id: string, data: any): User => {
 
 export const AuthService = {
   
-  getUserProfile: async (uid: string, fbUser?: any): Promise<User | null> => {
+  getUserProfile: async (uid: string, fbUser?: FirebaseUser): Promise<User | null> => {
     try {
-      // Using compat API for Firestore
-      const userDoc = await db.collection("users").doc(uid).get();
-
-      if (userDoc.exists) {
+      const userDoc = await getDoc(doc(db, "users", uid));
+      if (userDoc.exists()) {
         return mapDocToUser(uid, userDoc.data());
       } else if (fbUser) {
         return await AuthService.createProfileFromFallback(fbUser);
@@ -75,10 +72,12 @@ export const AuthService = {
     }
   },
 
-  createProfileFromFallback: async (fbUser: any): Promise<User> => {
+  createProfileFromFallback: async (fbUser: FirebaseUser): Promise<User> => {
     console.warn(`Creating missing profile for ${fbUser.email}...`);
     
-    const mockMatch = INITIAL_USERS.find(u => u.email.toLowerCase() === fbUser.email?.toLowerCase());
+    const mockMatch = fbUser.email 
+      ? INITIAL_USERS.find(u => u.email.toLowerCase() === fbUser.email!.toLowerCase())
+      : undefined;
 
     let newProfile: any;
 
@@ -86,7 +85,7 @@ export const AuthService = {
         const { id, password, ...rest } = mockMatch;
         newProfile = {
             ...rest,
-            createdAt: firebase.firestore.FieldValue.serverTimestamp()
+            createdAt: serverTimestamp()
         };
     } else {
         newProfile = {
@@ -95,54 +94,50 @@ export const AuthService = {
             role: UserRole.RIDER,
             status: AccountStatus.ACTIVE,
             cooperativeId: 'coop-global',
-            createdAt: firebase.firestore.FieldValue.serverTimestamp(),
-            photoUrl: fbUser.photoURL || `https://ui-avatars.com/api/?name=${fbUser.email}&background=random`,
+            createdAt: serverTimestamp(),
+            photoUrl: fbUser.photoURL || (fbUser.email ? `https://ui-avatars.com/api/?name=${fbUser.email}&background=random` : ''),
             phone: '',
             rating: 5.0
         };
     }
 
     const cleanProfile = cleanFirestoreData(newProfile);
-    await db.collection("users").doc(fbUser.uid).set(cleanProfile);
+    await setDoc(doc(db, "users", fbUser.uid), cleanProfile);
     return mapDocToUser(fbUser.uid, cleanProfile);
   },
 
   register: async (userData: Omit<User, 'id' | 'status'>, pass: string, coopCode: string): Promise<User> => {
-    // 1. Create Auth User using compat API
-    const userCredential = await auth.createUserWithEmailAndPassword(userData.email, pass);
+    const userCredential = await createUserWithEmailAndPassword(auth, userData.email, pass);
     const fbUser = userCredential.user!;
 
-    // 2. Determine Cooperative ID based on code
     let targetCoopId = 'coop-global';
     if (coopCode) {
          const coop = INITIAL_COOPERATIVES.find(c => c.code === coopCode);
          if (coop) targetCoopId = coop.id;
     }
 
-    // 3. Create Profile in Firestore
     const newProfile = {
       ...userData,
       status: AccountStatus.PENDING,
       cooperativeId: targetCoopId,
-      createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+      createdAt: serverTimestamp(),
       rating: 5.0
     };
 
     const cleanProfile = cleanFirestoreData(newProfile);
-    await db.collection("users").doc(fbUser.uid).set(cleanProfile);
+    await setDoc(doc(db, "users", fbUser.uid), cleanProfile);
     
     return mapDocToUser(fbUser.uid, cleanProfile);
   },
 
   login: async (email: string, pass: string): Promise<User> => {
     try {
-      // Using compat API for login
-      const userCredential = await auth.signInWithEmailAndPassword(email, pass);
+      const userCredential = await signInWithEmailAndPassword(auth, email, pass);
       const fbUser = userCredential.user!;
 
-      const userDoc = await db.collection("users").doc(fbUser.uid).get();
+      const userDoc = await getDoc(doc(db, "users", fbUser.uid));
 
-      if (userDoc.exists) {
+      if (userDoc.exists()) {
         return mapDocToUser(fbUser.uid, userDoc.data());
       } else {
         return await AuthService.createProfileFromFallback(fbUser);
@@ -167,13 +162,13 @@ export const AuthService = {
   },
 
   logout: async () => {
-    await auth.signOut();
+    await signOut(auth);
   },
 
   updateUserPassword: async (newPass: string) => {
     const user = auth.currentUser;
     if (user) {
-      await user.updatePassword(newPass);
+      await updatePassword(user, newPass);
     } else {
       throw new Error("No user logged in");
     }

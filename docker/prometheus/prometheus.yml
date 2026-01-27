@@ -1,0 +1,21 @@
+global:
+  scrape_interval: 15s
+
+scrape_configs:
+  - job_name: 'eta'
+    static_configs:
+      - targets: ['eta:8788']
+  - job_name: 'proxy'
+    static_configs:
+      - targets: ['proxy:8787']
+  - job_name: 'osrm'
+    metrics_path: /route/v1/driving/0,0;0,0
+    static_configs:
+      - targets: ['osrm:5000']
+  - job_name: 'app'
+    metrics_path: /health
+    static_configs:
+      - targets: ['app:80']
+
+rule_files:
+  - /etc/prometheus/alerts.yml

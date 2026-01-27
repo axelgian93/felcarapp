@@ -11,6 +11,17 @@ export default defineConfig(({ mode }) => {
     plugins: [react()],
     build: {
       outDir: 'dist',
+      rollupOptions: {
+        output: {
+          manualChunks: {
+            react: ['react', 'react-dom'],
+            firebase: ['firebase/app', 'firebase/auth', 'firebase/firestore'],
+            leaflet: ['leaflet'],
+            ui: ['lucide-react']
+          }
+        }
+      },
+      chunkSizeWarningLimit: 1200,
     },
     define: {
       // Esto permite que el código siga usando 'process.env.API_KEY'

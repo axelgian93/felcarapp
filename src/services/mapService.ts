@@ -73,7 +73,7 @@ export const MapService = {
         results = await fetchNominatim(`${query} Guayaquil`, false);
     }
 
-    return processResults(results);
+    return processResults(results, query);
   },
 
   getAddressFromCoords: async (lat: number, lng: number): Promise<string> => {
@@ -123,9 +123,10 @@ async function fetchNominatim(query: string, strictBounds: boolean): Promise<Nom
     }
 }
 
-function processResults(data: NominatimResult[]): Location[] {
+function processResults(data: NominatimResult[], query: string): Location[] {
     const uniqueResults: Location[] = [];
     const seenNames = new Set<string>();
+    const normQuery = query.toLowerCase().trim();
 
     data.forEach((item) => {
         const lat = parseFloat(item.lat);
@@ -169,16 +170,27 @@ function processResults(data: NominatimResult[]): Location[] {
 
         if (!isDuplicate) {
             seenNames.add(normName);
+
+            // Boost score if title matches query closely
+            let scoreBoost = 0;
+            if (normName.startsWith(normQuery)) scoreBoost += 3;
+            else if (normName.includes(normQuery)) scoreBoost += 2;
+            else {
+              const tokens = normQuery.split(/\s+/);
+              const matches = tokens.filter(t => normName.includes(t)).length;
+              scoreBoost += matches * 0.5;
+            }
+
             uniqueResults.push({
                 lat, lng, address: title, subtitle,
                 // @ts-ignore
-                _importance: item.importance || 0
+                _importance: (item.importance || 0) + scoreBoost
             });
         }
     });
 
-    // 4. Sort by Importance (Promote Malls/Commercial areas)
+    // 4. Sort by Importance (Promote Malls/Commercial areas + text match)
     uniqueResults.sort((a: any, b: any) => b._importance - a._importance);
 
-    return uniqueResults.slice(0, 5);
+    return uniqueResults.slice(0, 8);
 }
