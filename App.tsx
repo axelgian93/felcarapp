@@ -2,7 +2,7 @@
 import { useState, useEffect, useRef, useLayoutEffect, lazy, Suspense } from 'react';
 import { 
   Map as MapIcon, MapPin, Home, Briefcase, Heart, Bell, Menu, Sun, Moon, 
-  DollarSign, Clock, History, Power, Car, X, Calendar, Locate, Search, 
+  DollarSign, Clock, History, Power, Car, X, Calendar, Locate, Search, Trophy,
   CheckCircle2, MessageSquare, LogOut, Lock, Clock as ClockIcon
 } from 'lucide-react';
 import { MapBackground } from './components/MapBackground';
@@ -680,55 +680,120 @@ export default function App() {
       )}
 
       {currentUser.role === UserRole.RIDER && status === RideStatus.IDLE && !isPickingOnMap && (
-        <div ref={overlayRef} className={`absolute bottom-0 w-full bg-white dark:bg-gray-900 shadow-2xl transition-all duration-300 ease-in-out flex flex-col ${activeField ? 'h-full top-0 rounded-none z-[60]' : 'rounded-t-3xl z-30'}`}>
-          <div className={`flex-none bg-white dark:bg-gray-900 z-50 ${activeField ? 'pt-20 px-6 pb-2' : 'p-6 pb-0'}`}>
-             {activeField && (
-               <div className="flex items-center dark:text-white mb-4">
-                 <button onClick={() => { setActiveField(null); setAddressSuggestions([]); }} className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full"><X size={24}/></button>
-                 <h2 className="font-bold text-lg ml-2">Planifica tu viaje</h2>
-               </div>
-             )}
-             <div className="space-y-3 relative">
-                <div>
-                    <div className="bg-gray-100 dark:bg-gray-800 rounded-xl flex items-center px-4 py-3 relative">
-                        <div className="w-2 h-2 bg-green-500 rounded-full mr-3 shrink-0"></div>
-                        <input type="text" className="bg-transparent w-full text-sm font-semibold placeholder:text-gray-400 dark:text-white focus:outline-none" placeholder="Ubicación actual" value={pickupText} 
-                            onFocus={() => { setActiveField('PICKUP'); if (pickupText === 'Ubicación actual') setPickupText(''); }}
-                            onBlur={() => { if (pickupText === '') setPickupText('Ubicación actual'); }}
-                            onChange={(e) => handleAddressInput(e.target.value, 'PICKUP')} 
-                        />
-                        <button onClick={forceLocationRefresh} className="p-1 bg-white dark:bg-black rounded-full text-black dark:text-white shadow-sm ml-2 hover:scale-110 transition" title="Forzar GPS"><Locate size={16} /></button>
-                    </div>
-                    {activeField === 'PICKUP' && renderSavedPlacesSuggestions('PICKUP')}
-                </div>
-                <div>
-                    <div className="bg-gray-100 dark:bg-gray-800 rounded-xl flex items-center px-4 py-3 relative">
-                        <div className="w-2 h-2 bg-black dark:bg-white rounded-full mr-3 shrink-0"></div>
-                        <input type="text" className="bg-transparent w-full text-lg font-bold placeholder:text-gray-400 dark:text-white focus:outline-none" placeholder="¿A dónde vamos?" value={destinationText} 
-                            onFocus={() => setActiveField('DESTINATION')} 
-                            onChange={(e) => handleAddressInput(e.target.value, 'DESTINATION')} 
-                        />
-                    </div>
-                    {activeField === 'DESTINATION' && renderSavedPlacesSuggestions('DESTINATION')}
-                </div>
-             </div>
-          </div>
-          <div className="flex-grow overflow-y-auto p-6 pt-4">
-            {!activeField && (
-               <div className="grid grid-cols-4 gap-2 mb-4">
-                  {[ServiceType.RIDE, ServiceType.DELIVERY, ServiceType.TRIP].map(st => (
-                     <button key={st} onClick={() => setSelectedServiceType(st)} className={`flex flex-col items-center gap-1 p-2 rounded-xl transition ${selectedServiceType === st ? 'bg-black dark:bg-white text-white dark:text-black' : 'bg-gray-50 dark:bg-gray-800 text-gray-600 dark:text-gray-400'}`}><Car size={24} /><span className="text-[10px] font-bold">{st}</span></button>
-                  ))}
-                  <button onClick={handleOpenSchedule} className="flex flex-col items-center gap-1 p-2 rounded-xl transition bg-gray-50 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-black hover:text-white dark:hover:bg-white dark:hover:text-black"><Calendar size={24} /><span className="text-[10px] font-bold">Agendar</span></button>
-               </div>
+        <div ref={overlayRef} className={`absolute bottom-0 w-full bg-[#0b1220] text-slate-100 shadow-2xl transition-all duration-300 ease-in-out flex flex-col ${activeField ? 'h-full top-0 rounded-none z-[60]' : 'rounded-t-3xl z-30'}`}>
+          <div className={`${activeField ? 'pt-16 px-6 pb-2' : 'p-6 pb-0'} relative`}>
+            {activeField && (
+              <div className="flex items-center mb-4">
+                <button onClick={() => { setActiveField(null); setAddressSuggestions([]); }} className="p-2 hover:bg-white/5 rounded-full"><X size={24}/></button>
+                <h2 className="font-bold text-lg ml-2">Planifica tu viaje</h2>
+              </div>
             )}
+
+            {/* Hero */}
             {!activeField && (
-              <button onClick={handleSearchRide} disabled={!destinationText} className="w-full bg-black dark:bg-white text-white dark:text-black font-bold py-4 rounded-xl hover:scale-[1.02] transition disabled:opacity-50 shadow-xl flex items-center justify-center gap-2">
-                <Search size={20} /> Buscar Viaje
+              <div className="bg-gradient-to-br from-[#10213d] via-[#0f1a2f] to-[#0d1326] rounded-3xl p-5 border border-white/5">
+                <div className="flex items-start justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="w-12 h-12 rounded-full bg-white/10 overflow-hidden border border-white/10">
+                      <img src={currentUser.photoUrl} className="w-full h-full object-cover" />
+                    </div>
+                    <div>
+                      <p className="text-xs text-slate-300 uppercase tracking-wide">Hola</p>
+                      <p className="text-2xl font-black leading-6">{currentUser.name.split(' ')[0]}</p>
+                      <p className="text-xs text-slate-400">{currentCooperative?.name || 'Cooperativa Global'}</p>
+                    </div>
+                  </div>
+                  <button onClick={() => setIsNotificationsOpen(true)} className="bg-white/10 border border-white/10 rounded-2xl p-2 text-white hover:bg-white/15 pointer-events-auto">
+                    <Bell size={18}/>
+                  </button>
+                </div>
+                <div className="mt-4 flex items-center gap-3">
+                  <div className="flex items-center gap-2 bg-white/10 border border-white/10 rounded-full px-3 py-2 text-xs">
+                    <span className="w-2 h-2 rounded-full bg-emerald-400"></span>
+                    Listo para viajar
+                  </div>
+                  <button onClick={forceLocationRefresh} className="px-3 py-2 rounded-full text-xs font-semibold bg-blue-500 text-white hover:bg-blue-400 flex items-center gap-1">
+                    <Locate size={14}/> GPS
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Stats */}
+            {!activeField && (
+              <div className="grid grid-cols-3 gap-3 mt-4">
+                <div className="bg-white/5 rounded-2xl p-3 border border-white/5">
+                  <div className="text-xs text-slate-300 flex items-center gap-1"><DollarSign size={14}/> Hoy</div>
+                  <div className="text-2xl font-bold mt-1">${tripHistory.length > 0 ? (tripHistory.length * 5).toFixed(2) : '0.00'}</div>
+                  <p className="text-[10px] text-emerald-400 mt-1">+5% vs ayer</p>
+                </div>
+                <div className="bg-white/5 rounded-2xl p-3 border border-white/5">
+                  <div className="text-xs text-slate-300 flex items-center gap-1"><Car size={14}/> Viajes</div>
+                  <div className="text-2xl font-bold mt-1">{tripHistory.length || 0}</div>
+                  <p className="text-[10px] text-slate-400 mt-1">Esta semana</p>
+                </div>
+                <div className="bg-white/5 rounded-2xl p-3 border border-white/5">
+                  <div className="text-xs text-slate-300 flex items-center gap-1"><Trophy size={14}/> Nivel</div>
+                  <div className="text-2xl font-bold mt-1">Gold</div>
+                  <p className="text-[10px] text-amber-300 mt-1">Estable</p>
+                </div>
+              </div>
+            )}
+
+            {/* Inputs */}
+            <div className={`mt-6 space-y-3 ${activeField ? '' : ''} relative`}>
+              <div className="bg-white/5 rounded-2xl px-4 py-3 border border-white/10 flex items-center gap-3">
+                <div className="w-2 h-2 bg-emerald-400 rounded-full"></div>
+                <input
+                  type="text"
+                  className="bg-transparent w-full text-sm font-semibold placeholder:text-slate-400 focus:outline-none"
+                  placeholder="Ubicación actual"
+                  value={pickupText}
+                  onFocus={() => { setActiveField('PICKUP'); if (pickupText === 'Ubicación actual') setPickupText(''); }}
+                  onBlur={() => { if (pickupText === '') setPickupText('Ubicación actual'); }}
+                  onChange={(e) => handleAddressInput(e.target.value, 'PICKUP')}
+                />
+                <button onClick={forceLocationRefresh} className="p-2 bg-white/10 rounded-full hover:bg-white/20" title="Forzar GPS"><Locate size={16} /></button>
+              </div>
+              {activeField === 'PICKUP' && renderSavedPlacesSuggestions('PICKUP')}
+
+              <div className="bg-white/5 rounded-2xl px-4 py-4 border border-white/10 flex items-center gap-3">
+                <div className="w-2 h-2 bg-blue-400 rounded-full"></div>
+                <input
+                  type="text"
+                  className="bg-transparent w-full text-lg font-bold placeholder:text-slate-400 focus:outline-none"
+                  placeholder="¿A dónde vamos?"
+                  value={destinationText}
+                  onFocus={() => setActiveField('DESTINATION')}
+                  onChange={(e) => handleAddressInput(e.target.value, 'DESTINATION')}
+                />
+              </div>
+              {activeField === 'DESTINATION' && renderSavedPlacesSuggestions('DESTINATION')}
+            </div>
+          </div>
+
+          <div className="flex-grow overflow-y-auto p-6 pt-2">
+            {!activeField && (
+              <div className="grid grid-cols-4 gap-2 mb-5">
+                {[ServiceType.RIDE, ServiceType.DELIVERY, ServiceType.TRIP].map(st => (
+                  <button key={st} onClick={() => setSelectedServiceType(st)} className={`flex flex-col items-center gap-1 p-2 rounded-2xl border text-xs font-semibold transition ${selectedServiceType === st ? 'bg-blue-500 text-white border-blue-400 shadow-lg shadow-blue-500/30' : 'bg-white/5 border-white/10 text-slate-300'}`}><Car size={20} /><span className="text-[10px] font-bold">{st}</span></button>
+                ))}
+                <button onClick={handleOpenSchedule} className="flex flex-col items-center gap-1 p-2 rounded-2xl border bg-white/5 border-white/10 text-slate-300 hover:bg-white/10 transition"><Calendar size={20} /><span className="text-[10px] font-bold">Agendar</span></button>
+              </div>
+            )}
+
+            {!activeField && (
+              <button onClick={handleSearchRide} disabled={!destinationText} className="w-full bg-blue-600 text-white font-bold py-4 rounded-2xl hover:bg-blue-500 transition disabled:opacity-50 shadow-xl shadow-blue-600/30 flex items-center justify-center gap-2">
+                <Search size={20} /> Buscar viaje
               </button>
             )}
-            {!activeField && currentCooperative && <div className="mt-4 text-center"><p className="text-[10px] text-gray-400 uppercase tracking-widest">Operado por</p><p className="font-bold text-sm text-gray-600 dark:text-gray-400">{currentCooperative.name}</p></div>}
-            {!activeField && currentCompany && <div className="mt-2 text-center"><span className="inline-flex items-center gap-1 bg-gray-100 dark:bg-gray-800 px-2 py-1 rounded text-[10px] font-bold uppercase text-gray-500"><Briefcase size={10} /> {currentCompany.name}</span></div>}
+
+            {!activeField && (
+              <div className="mt-4 flex items-center justify-between text-sm">
+                {currentCooperative ? <span className="text-slate-400">Operado por <span className="font-semibold text-slate-200">{currentCooperative.name}</span></span> : <span className="text-slate-400">Cooperativa Global</span>}
+                {currentCompany && <span className="inline-flex items-center gap-1 bg-white/5 px-3 py-1 rounded-full text-[11px] uppercase tracking-wide text-slate-300"><Briefcase size={12}/> {currentCompany.name}</span>}
+              </div>
+            )}
           </div>
         </div>
       )}
