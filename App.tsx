@@ -30,6 +30,8 @@ import { CompanyService } from './src/services/companyService';
 import { PlacesService } from './src/services/placesService';
 import { getRideEstimates } from './services/geminiService';
 import { fetchEta, EtaResult } from './services/etaService';
+import { Capacitor } from '@capacitor/core';
+import { Geolocation } from '@capacitor/geolocation';
 
 import { 
   User, UserRole, RideStatus, Location, Driver, RideOption, ServiceType, 
@@ -40,6 +42,7 @@ import { onAuthStateChanged } from 'firebase/auth';
 
 export default function App() {
   const { theme, toggleTheme } = useTheme();
+  const isNative = Capacitor.isNativePlatform();
   
   // Auth State
   const [currentUser, setCurrentUser] = useState<User | null>(null);
@@ -135,32 +138,49 @@ export default function App() {
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // --- GPS UTILS ---
-  const forceLocationRefresh = () => {
-      if (!navigator.geolocation) {
-          showNotification("Tu navegador no soporta geolocalización.");
-          return;
-      }
-      
-      navigator.geolocation.getCurrentPosition(
-          (pos) => {
-              const loc = { lat: pos.coords.latitude, lng: pos.coords.longitude };
-              setUserLocation(loc);
-              setMapCenterCoords(loc);
-              setPickupLocation(loc);
-              setPickupText('Ubicación actual');
-              setGpsSignal(prev => prev + 1);
-          },
-          (err) => {
-              console.warn("GPS Error:", err);
-              showNotification("Error GPS: Asegúrate de activar la ubicación");
-          },
-          { 
-              enableHighAccuracy: true, 
-              timeout: 10000, 
-              maximumAge: 0 
+  const requestLocation = async () => {
+      const onSuccess = (lat: number, lng: number) => {
+          const loc = { lat, lng };
+          setUserLocation(loc);
+          setMapCenterCoords(loc);
+          setPickupLocation(loc);
+          setPickupText('Ubicación actual');
+          setGpsSignal(prev => prev + 1);
+      };
+
+      const onError = (err: any) => {
+          console.warn("GPS Error:", err);
+          const msg = err?.message || "Error GPS: Activa ubicación y concede permisos.";
+          showNotification(msg);
+      };
+
+      try {
+          if (isNative) {
+              await Geolocation.requestPermissions();
+              const pos = await Geolocation.getCurrentPosition({
+                  enableHighAccuracy: true,
+                  timeout: 10000,
+              });
+              onSuccess(pos.coords.latitude, pos.coords.longitude);
+          } else if (navigator.geolocation) {
+              navigator.geolocation.getCurrentPosition(
+                  (pos) => onSuccess(pos.coords.latitude, pos.coords.longitude),
+                  onError,
+                  { 
+                      enableHighAccuracy: true, 
+                      timeout: 10000, 
+                      maximumAge: 0 
+                  }
+              );
+          } else {
+              showNotification("Tu dispositivo no soporta geolocalización.");
           }
-      );
+      } catch (err) {
+          onError(err);
+      }
   };
+
+  const forceLocationRefresh = () => { requestLocation(); };
 
   // --- DRIVER MOVEMENT SIMULATION ---
   useEffect(() => {
@@ -214,20 +234,7 @@ export default function App() {
             setCurrentUser(profile);
             setRecentPlaces(PlacesService.getRecentPlaces());
             
-            if (navigator.geolocation) {
-                navigator.geolocation.getCurrentPosition(
-                    (pos) => {
-                        const loc = { lat: pos.coords.latitude, lng: pos.coords.longitude };
-                        setUserLocation(loc);
-                        setMapCenterCoords(loc);
-                        setPickupLocation(loc);
-                        setPickupText('Ubicación actual');
-                        setGpsSignal(prev => prev + 1);
-                    },
-                    () => console.log("Initial Geo permission missing"),
-                    { enableHighAccuracy: true }
-                );
-            }
+            requestLocation();
           }
         } catch (error) {
           console.error("Profile load error", error);
