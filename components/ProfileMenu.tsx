@@ -5,6 +5,7 @@ import { X, User, CreditCard, History, Settings, LogOut, Star, ChevronRight, Shi
 
 
 import { User as UserType, UserRole } from '../types';
+import { useTheme } from '../src/context/ThemeContext';
 
 
 import { ImageService } from '../src/services/imageService';
@@ -105,6 +106,8 @@ export const ProfileMenu: React.FC<ProfileMenuProps> = ({
 
   const [section, setSection] = useState<'MAIN' | 'EMERGENCY' | 'PREFS' | 'PERSONAL' | 'VEHICLE' | 'DOCS'>('MAIN');
 
+  const { theme, toggleTheme } = useTheme();
+
 
 
 
@@ -115,7 +118,7 @@ export const ProfileMenu: React.FC<ProfileMenuProps> = ({
   const [contacts] = useState(user.emergencyContacts || [
 
 
-    { id: 'c1', name: 'MamÃ¡', phone: '0999999999', relation: 'Familia' }
+    { id: 'c1', name: 'Mamá', phone: '0999999999', relation: 'Familia' }
 
 
   ]);
@@ -318,7 +321,7 @@ export const ProfileMenu: React.FC<ProfileMenuProps> = ({
             <>
 
 
-              <MenuItem icon={<Car size={20} />} label="Mi VehÃ­culo" onClick={() => setSection('VEHICLE')} />
+              <MenuItem icon={<Car size={20} />} label="Mi Vehículo" onClick={() => setSection('VEHICLE')} />
 
 
               <MenuItem icon={<FileText size={20} />} label="Documentos" onClick={() => setSection('DOCS')} />
@@ -433,6 +436,8 @@ export const ProfileMenu: React.FC<ProfileMenuProps> = ({
 
 
           <MenuItem icon={<ShieldQuestion size={20} />} label="Ayuda y Soporte" onClick={onOpenHelp} />
+          <MenuItem icon={<Settings size={20} />} label={`Tema: ${theme === 'dark' ? 'Oscuro' : 'Claro'}`} onClick={toggleTheme} />
+
 
 
           <MenuItem icon={<Settings size={20} />} label="Preferencias" onClick={() => setSection('PREFS')} />
@@ -465,7 +470,7 @@ export const ProfileMenu: React.FC<ProfileMenuProps> = ({
         >
 
 
-          <LogOut size={18} /> Cerrar SesiÃ³n
+          <LogOut size={18} /> Cerrar Sesión
 
 
         </button>
@@ -551,7 +556,7 @@ export const ProfileMenu: React.FC<ProfileMenuProps> = ({
             </div>
 
 
-            <p className="text-xs text-gray-400 dark:text-slate-500 mt-2">Toca la cÃ¡mara para actualizar</p>
+            <p className="text-xs text-gray-400 dark:text-slate-500 mt-2">Toca la cámara para actualizar</p>
 
 
          </div>
@@ -593,7 +598,7 @@ export const ProfileMenu: React.FC<ProfileMenuProps> = ({
               <div>
 
 
-                <p className="text-xs text-gray-500 dark:text-slate-400 uppercase font-bold">CÃ©dula / ID</p>
+                <p className="text-xs text-gray-500 dark:text-slate-400 uppercase font-bold">Cédula / ID</p>
 
 
                 <p className="font-bold text-gray-900 dark:text-slate-100">{user.cedula || 'No registrado'}</p>
@@ -614,7 +619,7 @@ export const ProfileMenu: React.FC<ProfileMenuProps> = ({
               <div>
 
 
-                <p className="text-xs text-gray-500 dark:text-slate-400 uppercase font-bold">Correo electrÃ³nico</p>
+                <p className="text-xs text-gray-500 dark:text-slate-400 uppercase font-bold">Correo electrónico</p>
 
 
                 <p className="font-bold text-gray-900 dark:text-slate-100">{user.email}</p>
@@ -635,7 +640,7 @@ export const ProfileMenu: React.FC<ProfileMenuProps> = ({
               <div>
 
 
-                <p className="text-xs text-gray-500 dark:text-slate-400 uppercase font-bold">TelÃ©fono</p>
+                <p className="text-xs text-gray-500 dark:text-slate-400 uppercase font-bold">Teléfono</p>
 
 
                 <p className="font-bold text-gray-900 dark:text-slate-100">{user.phone || 'No registrado'}</p>
@@ -670,7 +675,7 @@ export const ProfileMenu: React.FC<ProfileMenuProps> = ({
              >
 
 
-                <Lock size={18} /> Cambiar ContraseÃ±a
+                <Lock size={18} /> Cambiar Contraseña
 
 
              </button>
@@ -709,7 +714,7 @@ export const ProfileMenu: React.FC<ProfileMenuProps> = ({
          </button>
 
 
-         <h3 className="font-bold text-lg text-slate-900 dark:text-slate-100">Mi VehÃ­culo</h3>
+         <h3 className="font-bold text-lg text-slate-900 dark:text-slate-100">Mi Vehículo</h3>
 
 
       </div>
@@ -805,7 +810,7 @@ export const ProfileMenu: React.FC<ProfileMenuProps> = ({
                <div>
 
 
-                  <p className="text-xs text-gray-500 dark:text-slate-400 uppercase font-bold">AÃ±o</p>
+                  <p className="text-xs text-gray-500 dark:text-slate-400 uppercase font-bold">Año</p>
 
 
                   <p className="font-bold text-lg text-gray-900 dark:text-slate-100">{user.driverDetails?.carYear || "-"}</p>
@@ -901,7 +906,7 @@ export const ProfileMenu: React.FC<ProfileMenuProps> = ({
             { name: 'Licencia de Conducir', status: 'VALID' },
 
 
-            { name: 'MatrÃ­cula / RevisiÃ³n', status: 'VALID' },
+            { name: 'Matrícula / Revisión', status: 'VALID' },
 
 
             { name: 'Antecedentes Penales', status: 'VALID' }
@@ -973,7 +978,7 @@ export const ProfileMenu: React.FC<ProfileMenuProps> = ({
       <div className="flex-grow p-4 bg-gray-50 dark:bg-slate-800 space-y-3">
 
 
-         <p className="text-sm text-gray-500 dark:text-slate-400 mb-4">Estas personas recibirÃ¡n un enlace a tu ubicaciÃ³n si usas el botÃ³n SOS.</p>
+         <p className="text-sm text-gray-500 dark:text-slate-400 mb-4">Estas personas recibirán un enlace a tu ubicación si usas el botón SOS.</p>
 
 
          {contacts.map(c => (
@@ -1049,6 +1054,12 @@ export const ProfileMenu: React.FC<ProfileMenuProps> = ({
 
 
       <div className="flex-grow p-4 bg-gray-50 dark:bg-slate-800 space-y-4">
+         <div className="bg-white dark:bg-slate-900 p-4 rounded-xl border border-gray-100 dark:border-slate-800 flex justify-between items-center">
+            <span className="font-bold text-sm text-gray-900 dark:text-slate-100">Tema</span>
+            <button onClick={toggleTheme} className="px-3 py-1 rounded-full text-xs font-bold border border-gray-200 dark:border-slate-700">
+              {theme === 'dark' ? 'Oscuro' : 'Claro'}
+            </button>
+         </div>
 
 
          <div className="bg-white dark:bg-slate-900 p-4 rounded-xl border border-gray-100 dark:border-slate-800 flex justify-between items-center">
@@ -1084,7 +1095,7 @@ export const ProfileMenu: React.FC<ProfileMenuProps> = ({
             <select className="w-full bg-gray-100 dark:bg-slate-800 p-2 rounded-lg text-sm font-bold text-gray-900 dark:text-slate-100">
 
 
-               <option>EspaÃ±ol (Ecuador)</option>
+               <option>Español (Ecuador)</option>
 
 
                <option>English</option>

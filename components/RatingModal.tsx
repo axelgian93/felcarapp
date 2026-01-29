@@ -100,13 +100,13 @@ export const RatingModal: React.FC<RatingModalProps> = ({
       if (isHighRating) {
 
 
-        return ['ConducciÃ³n segura', 'Auto limpio', 'Amable', 'Ruta rÃ¡pida', 'Aire acondicionado'];
+        return ['Conducción segura', 'Auto limpio', 'Amable', 'Ruta rápida', 'Aire acondicionado'];
 
 
       } else {
 
 
-        return ['Mala conducciÃ³n', 'Auto sucio', 'Ruta incorrecta', 'Olor desagradable', 'Mala actitud', 'MÃºsica alta'];
+        return ['Mala conducción', 'Auto sucio', 'Ruta incorrecta', 'Olor desagradable', 'Mala actitud', 'Música alta'];
 
 
       }
@@ -121,13 +121,13 @@ export const RatingModal: React.FC<RatingModalProps> = ({
       if (isHighRating) {
 
 
-        return ['Puntual', 'Amable', 'Respetuoso', 'UbicaciÃ³n exacta', 'Buena conversaciÃ³n'];
+        return ['Puntual', 'Amable', 'Respetuoso', 'Ubicación exacta', 'Buena conversación'];
 
 
       } else {
 
 
-        return ['Hizo esperar', 'Portazo', 'ComiÃ³ en el auto', 'Mala ubicaciÃ³n', 'Irrespetuoso', 'Solicitud extra'];
+        return ['Hizo esperar', 'Portazo', 'Comió en el auto', 'Mala ubicación', 'Irrespetuoso', 'Solicitud extra'];
 
 
       }
@@ -463,7 +463,7 @@ export const RatingModal: React.FC<RatingModalProps> = ({
           >
 
 
-            Enviar CalificaciÃ³n
+            Enviar Calificación
 
 
           </button>

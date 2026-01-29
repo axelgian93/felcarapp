@@ -79,16 +79,16 @@ export const HelpCenterModal: React.FC<HelpCenterModalProps> = ({ isOpen, onClos
   const faqs = [
 
 
-    { q: "Â¿CÃ³mo cancelo un viaje?", a: "Puedes cancelar tu viaje pulsando el botÃ³n 'Cancelar' en la pantalla de espera." },
+    { q: "¿Cómo cancelo un viaje?", a: "Puedes cancelar tu viaje pulsando el botón 'Cancelar' en la pantalla de espera." },
 
 
-    { q: "Tarifas y recargos", a: "Nuestras tarifas se calculan basÃ¡ndose en la distancia y el tiempo estimado." },
+    { q: "Tarifas y recargos", a: "Nuestras tarifas se calculan basándose en la distancia y el tiempo estimado." },
 
 
-    { q: "Seguridad", a: "Todos nuestros viajes son monitoreados por GPS. Usa el botÃ³n SOS en emergencias." },
+    { q: "Seguridad", a: "Todos nuestros viajes son monitoreados por GPS. Usa el botón SOS en emergencias." },
 
 
-    { q: "Problemas con tarjeta", a: "AsegÃºrate de que tu tarjeta tenga fondos suficientes." }
+    { q: "Problemas con tarjeta", a: "Asegúrate de que tu tarjeta tenga fondos suficientes." }
 
 
   ];
@@ -347,7 +347,7 @@ export const HelpCenterModal: React.FC<HelpCenterModalProps> = ({ isOpen, onClos
                        <div className="bg-blue-50 p-4 rounded-xl border border-blue-100 mb-4">
 
 
-                          <p className="text-xs text-blue-700 font-medium">CuÃ©ntanos tu problema. Te responderemos en menos de 24 horas.</p>
+                          <p className="text-xs text-blue-700 font-medium">Cuéntanos tu problema. Te responderemos en menos de 24 horas.</p>
 
 
                        </div>
@@ -374,7 +374,7 @@ export const HelpCenterModal: React.FC<HelpCenterModalProps> = ({ isOpen, onClos
                        <div>
 
 
-                          <label className="text-xs font-bold text-gray-500 dark:text-slate-400 uppercase">DescripciÃ³n</label>
+                          <label className="text-xs font-bold text-gray-500 dark:text-slate-400 uppercase">Descripción</label>
 
 
                           <textarea className="w-full mt-1 p-3 bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-800 rounded-xl text-sm h-32 resize-none" placeholder="Detalla lo sucedido..." value={description} onChange={e=>setDescription(e.target.value)}></textarea>

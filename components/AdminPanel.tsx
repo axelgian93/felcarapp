@@ -13,7 +13,7 @@ import {
 
   Bell, LogOut, X, 
 
-  Eye, 
+  Eye, EyeOff,
 
   TrendingUp, 
 
@@ -23,7 +23,7 @@ import {
 
   Building, Briefcase, RefreshCw, Edit, Power, Plus,
 
-  Percent, User as UserIcon, UserCog, Menu, Layers
+  Percent, User as UserIcon, UserCog, Menu, Layers, Sun, Moon
 
 } from 'lucide-react';
 
@@ -40,6 +40,7 @@ import {
 
 
 import { NotificationsModal } from './NotificationsModal';
+import { useTheme } from '../src/context/ThemeContext';
 
 import { AdminFamilyModules } from './admin/AdminFamilyModules';
 
@@ -151,6 +152,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
   cooperatives
 
 }) => {
+  const { theme, toggleTheme } = useTheme();
 
   const [activeView, setActiveView] = useState<AdminView>('MODULES');
 
@@ -230,6 +232,12 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
 
 
   const [isCreateUserModalOpen, setIsCreateUserModalOpen] = useState(false);
+
+  const [isResetPasswordOpen, setIsResetPasswordOpen] = useState(false);
+  const [resetPasswordUser, setResetPasswordUser] = useState<User | null>(null);
+  const [resetPasswordValue, setResetPasswordValue] = useState('');
+  const [resetPasswordConfirm, setResetPasswordConfirm] = useState('');
+  const [showResetPassword, setShowResetPassword] = useState(false);
 
 
 
@@ -1094,6 +1102,36 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
 
   };
 
+  const canResetUserPassword = (u: User) => {
+    if (currentUser.role === UserRole.SUPERADMIN) return true;
+    if (currentUser.role === UserRole.ADMIN && currentUser.cooperativeId && u.cooperativeId) {
+      return currentUser.cooperativeId === u.cooperativeId;
+    }
+    return false;
+  };
+
+  const handleOpenResetPassword = (user: User) => {
+    setResetPasswordUser(user);
+    setResetPasswordValue('');
+    setResetPasswordConfirm('');
+    setShowResetPassword(false);
+    setIsResetPasswordOpen(true);
+  };
+
+  const handleConfirmResetPassword = () => {
+    if (!resetPasswordUser) return;
+    if (!resetPasswordValue || resetPasswordValue.length < 6) {
+      onNotify("La contraseña debe tener al menos 6 caracteres.");
+      return;
+    }
+    if (resetPasswordValue !== resetPasswordConfirm) {
+      onNotify("Las contraseñas no coinciden.");
+      return;
+    }
+    setIsResetPasswordOpen(false);
+    onNotify(`Clave actualizada para ${resetPasswordUser.name} (demo).`);
+  };
+
 
 
 
@@ -1568,7 +1606,11 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                               <>
 
 
-                                 <button onClick={() => handleEditUserClick(u)} className="p-2 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100" title="Editar"><Edit size={16}/></button>
+                                  <button onClick={() => handleEditUserClick(u)} className="p-2 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100" title="Editar"><Edit size={16}/></button>
+
+                                  {(role === UserRole.RIDER || role === UserRole.DRIVER) && canResetUserPassword(u) && (
+                                    <button onClick={() => handleOpenResetPassword(u)} className="p-2 bg-slate-100 text-slate-600 rounded-lg hover:bg-slate-200" title="Cambiar clave"><Lock size={16} /></button>
+                                  )}
 
 
                                  {/* CHANGE COOPERATIVE BUTTON FOR RIDERS OR ADMINS (SUPERADMIN ONLY) */}
@@ -2890,6 +2932,12 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
 
 
         <div className="p-4 border-t border-slate-200 dark:border-slate-800 space-y-2">
+          <button
+            onClick={toggleTheme}
+            className="flex items-center gap-3 w-full px-4 py-2 text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-900/60 rounded-lg transition"
+          >
+            {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />} Tema: {theme === 'dark' ? 'Oscuro' : 'Claro'}
+          </button>
 
           {onChangePassword && (
 
@@ -3964,6 +4012,52 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
           </div>
 
 
+      )}
+
+      {isResetPasswordOpen && (
+        <div className="absolute inset-0 z-[80] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white dark:bg-slate-900 dark:bg-slate-900 w-full max-w-sm rounded-2xl shadow-2xl p-6">
+            <h3 className="text-lg font-bold mb-2">Cambiar clave</h3>
+            <p className="text-sm text-gray-500 dark:text-slate-400 mb-4">
+              Usuario: <span className="font-bold text-black dark:text-slate-100">{resetPasswordUser?.name || "-"}</span>
+            </p>
+            <div className="space-y-4 mb-6">
+              <div>
+                <label className="text-xs font-bold text-gray-500 dark:text-slate-400 uppercase">Nueva contraseña</label>
+                <div className="relative mt-1">
+                  <input
+                    type={showResetPassword ? "text" : "password"}
+                    value={resetPasswordValue}
+                    onChange={(e) => setResetPasswordValue(e.target.value)}
+                    className="w-full bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-800 p-3 rounded-xl font-bold pr-10"
+                    placeholder="Mínimo 6 caracteres"
+                  />
+                  <button
+                    onClick={() => setShowResetPassword(!showResetPassword)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400"
+                    type="button"
+                  >
+                    {showResetPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                  </button>
+                </div>
+              </div>
+              <div>
+                <label className="text-xs font-bold text-gray-500 dark:text-slate-400 uppercase">Confirmar contraseña</label>
+                <input
+                  type={showResetPassword ? "text" : "password"}
+                  value={resetPasswordConfirm}
+                  onChange={(e) => setResetPasswordConfirm(e.target.value)}
+                  className="w-full mt-1 bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-800 p-3 rounded-xl font-bold"
+                  placeholder="Repite la contraseña"
+                />
+              </div>
+            </div>
+            <div className="flex gap-2">
+              <button onClick={() => setIsResetPasswordOpen(false)} className="flex-1 py-3 bg-gray-100 dark:bg-slate-800 font-bold rounded-xl">Cancelar</button>
+              <button onClick={handleConfirmResetPassword} className="flex-1 py-3 bg-slate-900 dark:bg-sky-500 text-white font-bold rounded-xl">Guardar</button>
+            </div>
+          </div>
+        </div>
       )}
 
 

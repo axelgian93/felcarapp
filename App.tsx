@@ -123,6 +123,7 @@ import { Capacitor } from '@capacitor/core';
 
 
 import { Geolocation } from '@capacitor/geolocation';
+import { Camera } from '@capacitor/camera';
 
 
 
@@ -223,6 +224,10 @@ export default function App() {
 
 
   const [gpsSignal, setGpsSignal] = useState(0);
+  const [showPermissionsPrompt, setShowPermissionsPrompt] = useState(() => {
+    if (typeof window === "undefined") return false;
+    return localStorage.getItem("felcar-permissions-ack") !== "true";
+  });
 
 
 
@@ -541,6 +546,26 @@ export default function App() {
 
 
 
+
+  const handlePermissionsAccept = async () => {
+    setShowPermissionsPrompt(false);
+    if (typeof window !== "undefined") {
+      localStorage.setItem("felcar-permissions-ack", "true");
+      if ("Notification" in window && Notification.permission === "default") {
+        try {
+          await Notification.requestPermission();
+        } catch (_) {}
+      }
+    }
+    try {
+      await Camera.requestPermissions({ permissions: ['camera', 'photos'] });
+    } catch (_) {}
+    forceLocationRefresh();
+  };
+
+  const handlePermissionsLater = () => {
+    setShowPermissionsPrompt(false);
+  };
 
   // --- GPS UTILS ---
 
@@ -2355,6 +2380,20 @@ const handleLogin = async (email: string, pass: string) => {
 
 
     <div className="h-full w-full relative flex flex-col font-sans bg-white dark:bg-slate-900 dark:bg-gray-900 text-slate-900 dark:text-white overflow-hidden">
+
+      {showPermissionsPrompt && (
+        <div className="absolute inset-0 z-[90] bg-black/60 backdrop-blur-sm flex items-center justify-center p-6">
+          <div className="bg-white dark:bg-slate-900 rounded-2xl p-6 w-full max-w-sm shadow-2xl">
+            <h3 className="text-lg font-bold text-slate-900 dark:text-slate-100 mb-2">Permisos necesarios</h3>
+            <p className="text-sm text-slate-500 dark:text-slate-400 mb-4">Para ofrecer viajes seguros, necesitamos acceso a tu ubicaci?n (GPS), notificaciones y c?mara.</p>
+            <div className="flex gap-3">
+              <button onClick={handlePermissionsLater} className="flex-1 py-2 rounded-xl border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300 font-bold">M?s tarde</button>
+              <button onClick={handlePermissionsAccept} className="flex-1 py-2 rounded-xl bg-emerald-500 text-white font-bold">Permitir</button>
+            </div>
+          </div>
+        </div>
+      )}
+
 
 
 
