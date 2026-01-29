@@ -66,11 +66,8 @@ jobs:
       - name: Build Web Assets
         run: npm run build
 
-      - name: Add Android Platform
-        run: npx cap add android
-
       - name: Sync Capacitor
-        run: npx cap sync
+        run: npx cap sync android
 
       - name: Make Gradlew Executable
         run: cd android && chmod +x gradlew
