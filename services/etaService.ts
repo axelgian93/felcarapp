@@ -7,6 +7,10 @@ export interface EtaResult {
   etaMinutes: number;
   confidence: number;
   source: 'default' | 'fleet' | 'historic' | 'blended' | 'external';
+  routeMs?: number;
+  totalMs?: number;
+  routeCacheHit?: boolean;
+  routeInflightHit?: boolean;
 }
 
 const serviceTypeToMode: Record<ServiceType, 'car' | 'moto' | 'van'> = {

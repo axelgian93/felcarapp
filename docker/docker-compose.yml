@@ -18,8 +18,8 @@ services:
         VITE_FIREBASE_MEASUREMENT_ID: ${VITE_FIREBASE_MEASUREMENT_ID}
         VITE_GEMINI_API_KEY: ${VITE_GEMINI_API_KEY}
         VITE_GEMINI_PROXY_URL: ${VITE_GEMINI_PROXY_URL}
-        VITE_OSRM_URL: ${VITE_OSRM_URL:-http://osrm-lb:5000}
-        VITE_ETA_URL: ${VITE_ETA_URL:-http://eta:8788}
+        VITE_OSRM_URL: ${VITE_OSRM_URL:-http://localhost:5000}
+        VITE_ETA_URL: ${VITE_ETA_URL:-http://localhost:8788}
     ports:
       - "80:80"
     restart: always
@@ -31,10 +31,13 @@ services:
       dockerfile: Dockerfile
       target: eta-serve
     environment:
-      - OSRM_URL=${OSRM_URL:-http://osrm-lb:5000}
+      - OSRM_URL=${OSRM_URL:-http://osrm-a:5000}
       - PORT=8788
+      - LOG_FILE=/var/log/eta/eta.log
     ports:
       - "8788:8788"
+    volumes:
+      - ./logs/eta:/var/log/eta
     depends_on:
       - osrm-a
       - osrm-b

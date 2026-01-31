@@ -12,7 +12,7 @@ import {
   Map as MapIcon, MapPin, Home, Briefcase, Heart, Bell, Menu, Sun, Moon, 
 
 
-  DollarSign, Clock, History, Power, Car, X, Calendar, Locate, Search, Trophy,
+  DollarSign, Clock, History, Power, Car, X, Calendar, Locate, Search,
 
 
   CheckCircle2, MessageSquare, LogOut, Lock, Clock as ClockIcon
@@ -560,6 +560,9 @@ export default function App() {
     try {
       await Camera.requestPermissions({ permissions: ['camera', 'photos'] });
     } catch (_) {}
+    try {
+      await Geolocation.requestPermissions();
+    } catch (_) {}
     forceLocationRefresh();
   };
 
@@ -913,6 +916,9 @@ export default function App() {
 
             requestLocation();
 
+            // Warm up ETA/OSRM to avoid first-request latency
+            fetch(`${(import.meta.env.VITE_ETA_URL as string | undefined)?.replace(/\/$/, '') || 'http://localhost:8788'}/health`).catch(() => undefined);
+
 
           }
 
@@ -1158,11 +1164,11 @@ export default function App() {
 
     const getAuthErrorMessage = (error: any) => {
     const code = error?.code || "";
-    if (code === "auth/invalid-credential" || code === "auth/wrong-password") return "Correo o contrase?a incorrectos.";
-    if (code === "auth/user-not-found") return "Correo o contrase?a incorrectos.";
+    if (code === "auth/invalid-credential" || code === "auth/wrong-password") return "Correo o contraseña incorrectos.";
+    if (code === "auth/user-not-found") return "Correo o contraseña incorrectos.";
     if (code === "auth/too-many-requests") return "Demasiados intentos. Intenta nuevamente en unos minutos.";
-    if (code === "auth/network-request-failed") return "No se pudo conectar. Revisa tu conexi?n a internet.";
-    return "No pudimos iniciar sesi?n. Verifica tus datos e int?ntalo nuevamente.";
+    if (code === "auth/network-request-failed") return "No se pudo conectar. Revisa tu conexión a internet.";
+    return "No pudimos iniciar sesión. Verifica tus datos e inténtalo nuevamente.";
   };
 
 const handleLogin = async (email: string, pass: string) => {
@@ -2385,9 +2391,9 @@ const handleLogin = async (email: string, pass: string) => {
         <div className="absolute inset-0 z-[90] bg-black/60 backdrop-blur-sm flex items-center justify-center p-6">
           <div className="bg-white dark:bg-slate-900 rounded-2xl p-6 w-full max-w-sm shadow-2xl">
             <h3 className="text-lg font-bold text-slate-900 dark:text-slate-100 mb-2">Permisos necesarios</h3>
-            <p className="text-sm text-slate-500 dark:text-slate-400 mb-4">Para ofrecer viajes seguros, necesitamos acceso a tu ubicaci?n (GPS), notificaciones y c?mara.</p>
+            <p className="text-sm text-slate-500 dark:text-slate-400 mb-4">Para ofrecer viajes seguros, necesitamos acceso a tu ubicación (GPS), notificaciones, cámara y fotos/galería.</p>
             <div className="flex gap-3">
-              <button onClick={handlePermissionsLater} className="flex-1 py-2 rounded-xl border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300 font-bold">M?s tarde</button>
+              <button onClick={handlePermissionsLater} className="flex-1 py-2 rounded-xl border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300 font-bold">Más tarde</button>
               <button onClick={handlePermissionsAccept} className="flex-1 py-2 rounded-xl bg-emerald-500 text-white font-bold">Permitir</button>
             </div>
           </div>
@@ -2569,7 +2575,7 @@ const handleLogin = async (email: string, pass: string) => {
 
 
 
-              <div><h2 className="text-2xl font-bold dark:text-white">Panel Conductor</h2><p className="text-gray-400 dark:text-slate-500 text-sm flex items-center gap-2">{isDriverOnline ? <>En l?nea <span className="font-mono text-black dark:text-slate-100 dark:text-white bg-gray-100 dark:bg-slate-800 dark:bg-gray-800 px-2 rounded-md ml-1">{onlineDuration}</span></> : 'Desconectado'}</p></div>
+              <div><h2 className="text-2xl font-bold dark:text-white">Panel Conductor</h2><p className="text-gray-400 dark:text-slate-500 text-sm flex items-center gap-2">{isDriverOnline ? <>En línea <span className="font-mono text-black dark:text-slate-100 dark:text-white bg-gray-100 dark:bg-slate-800 dark:bg-gray-800 px-2 rounded-md ml-1">{onlineDuration}</span></> : 'Desconectado'}</p></div>
 
 
 
@@ -2708,159 +2714,6 @@ const handleLogin = async (email: string, pass: string) => {
 
 
                 <h2 className="font-bold text-lg ml-2">Planifica tu viaje</h2>
-
-
-              </div>
-
-
-            )}
-
-
-
-
-
-            {/* Hero */}
-
-
-            {!activeField && (
-
-
-              <div className="bg-gradient-to-br from-[#10213d] via-[#0f1a2f] to-[#0d1326] rounded-3xl p-5 border border-white/5">
-
-
-                <div className="flex items-start justify-between">
-
-
-                  <div className="flex items-center gap-3">
-
-
-                    <div className="w-12 h-12 rounded-full bg-white dark:bg-slate-900/10 overflow-hidden border border-white/10">
-
-
-                      <img src={currentUser.photoUrl} className="w-full h-full object-cover" />
-
-
-                    </div>
-
-
-                    <div>
-
-
-                      <p className="text-xs text-slate-300 uppercase tracking-wide">Hola</p>
-
-
-                      <p className="text-2xl font-black leading-6">{currentUser.name.split(' ')[0]}</p>
-
-
-                      <p className="text-xs text-slate-400">{currentCooperative?.name || 'Cooperativa Global'}</p>
-
-
-                    </div>
-
-
-                  </div>
-
-
-                  <button onClick={() => setIsNotificationsOpen(true)} className="bg-white dark:bg-slate-900/10 border border-white/10 rounded-2xl p-2 text-white hover:bg-white dark:bg-slate-900/15 pointer-events-auto">
-
-
-                    <Bell size={18}/>
-
-
-                  </button>
-
-
-                </div>
-
-
-                <div className="mt-4 flex items-center gap-3">
-
-
-                  <div className="flex items-center gap-2 bg-white dark:bg-slate-900/10 border border-white/10 rounded-full px-3 py-2 text-xs">
-
-
-                    <span className="w-2 h-2 rounded-full bg-emerald-400"></span>
-
-
-                    Listo para viajar
-
-
-                  </div>
-
-
-                  <button onClick={forceLocationRefresh} className="px-3 py-2 rounded-full text-xs font-semibold bg-blue-500 text-white hover:bg-blue-400 flex items-center gap-1">
-
-
-                    <Locate size={14}/> GPS
-
-
-                  </button>
-
-
-                </div>
-
-
-              </div>
-
-
-            )}
-
-
-
-
-
-            {/* Stats */}
-
-
-            {!activeField && (
-
-
-              <div className="grid grid-cols-3 gap-3 mt-4">
-
-
-                <div className="bg-white dark:bg-slate-900/5 rounded-2xl p-3 border border-white/5">
-
-
-                  <div className="text-xs text-slate-300 flex items-center gap-1"><DollarSign size={14}/> Hoy</div>
-
-
-                  <div className="text-2xl font-bold mt-1">${tripHistory.length > 0 ? (tripHistory.length * 5).toFixed(2) : '0.00'}</div>
-
-
-                  <p className="text-[10px] text-emerald-400 mt-1">+5% vs ayer</p>
-
-
-                </div>
-
-
-                <div className="bg-white dark:bg-slate-900/5 rounded-2xl p-3 border border-white/5">
-
-
-                  <div className="text-xs text-slate-300 flex items-center gap-1"><Car size={14}/> Viajes</div>
-
-
-                  <div className="text-2xl font-bold mt-1">{tripHistory.length || 0}</div>
-
-
-                  <p className="text-[10px] text-slate-400 mt-1">Esta semana</p>
-
-
-                </div>
-
-
-                <div className="bg-white dark:bg-slate-900/5 rounded-2xl p-3 border border-white/5">
-
-
-                  <div className="text-xs text-slate-300 flex items-center gap-1"><Trophy size={14}/> Nivel</div>
-
-
-                  <div className="text-2xl font-bold mt-1">Gold</div>
-
-
-                  <p className="text-[10px] text-amber-300 mt-1">Estable</p>
-
-
-                </div>
 
 
               </div>
@@ -3067,7 +2920,7 @@ const handleLogin = async (email: string, pass: string) => {
 
 
 
-                 <div key={opt.id} onClick={() => setSelectedRide(opt)} className={`flex items-center p-4 rounded-xl border-2 cursor-pointer transition ${selectedRide?.id === opt.id ? 'border-black dark:border-white bg-gray-50 dark:bg-slate-800 dark:bg-gray-800' : 'border-transparent hover:bg-gray-50 dark:hover:bg-slate-800 dark:bg-slate-800 dark:hover:bg-gray-800'}`}><div className="flex-grow"><div className="flex justify-between items-center dark:text-white"><h4 className="font-bold text-lg">{opt.name}</h4><span className="font-bold text-lg">{opt.currency}{opt.price.toFixed(2)}</span></div><p className="text-xs text-gray-500 dark:text-slate-400">{formatEtaRange(routeEta) || `${opt.eta} min`}  {opt.duration} min viaje {routeEta && routeEta.confidence < 0.5 && <span className="ml-2 px-2 py-0.5 rounded-full text-[10px] bg-yellow-100 text-yellow-700 font-bold uppercase">estimación baja</span>}</p></div></div>
+                 <div key={opt.id} onClick={() => setSelectedRide(opt)} className={`flex items-center p-4 rounded-xl border-2 cursor-pointer transition ${selectedRide?.id === opt.id ? 'border-black dark:border-white bg-gray-50 dark:bg-slate-800 dark:bg-gray-800' : 'border-transparent hover:bg-gray-50 dark:hover:bg-slate-800 dark:bg-slate-800 dark:hover:bg-gray-800'}`}><div className="flex-grow"><div className="flex justify-between items-center dark:text-white"><h4 className="font-bold text-lg">{opt.name}</h4><span className="font-bold text-lg">{opt.currency}{opt.price.toFixed(2)}</span></div><p className="text-xs text-gray-500 dark:text-slate-400">{formatEtaRange(routeEta) || `${opt.eta} min`}  {opt.duration} min viaje {routeEta && routeEta.confidence < 0.5 && <span className="ml-2 px-2 py-0.5 rounded-full text-[10px] bg-yellow-100 text-yellow-700 font-bold uppercase">estimaci�n baja</span>}</p></div></div>
 
 
 
@@ -3151,11 +3004,14 @@ const handleLogin = async (email: string, pass: string) => {
 
 
 
-                        {routeEta.confidence < 0.5 && <span className="text-[10px] px-2 py-1 bg-yellow-100 text-yellow-700 rounded-full uppercase font-bold">estimación baja</span>}
+                        {routeEta.confidence < 0.5 && <span className="text-[10px] px-2 py-1 bg-yellow-100 text-yellow-700 font-bold uppercase rounded-full">estimaci�n baja</span>}
 
 
 
-                        <span className="text-xs text-gray-400 dark:text-slate-500 dark:text-gray-500 dark:text-slate-400">{status === RideStatus.DRIVER_ASSIGNED ? 'a la recogida' : 'al destino'}</span>
+                        <span className="text-xs text-gray-400 dark:text-slate-500">{status === RideStatus.DRIVER_ASSIGNED ? 'a la recogida' : 'al destino'}</span>
+                        {routeEta.totalMs !== undefined && (
+                          <span className="text-[10px] text-gray-400 dark:text-slate-500">c�lculo: {routeEta.totalMs} ms</span>
+                        )}
 
 
 
@@ -3207,7 +3063,7 @@ const handleLogin = async (email: string, pass: string) => {
 
 
 
-      <ProfileMenu isOpen={isProfileOpen} onClose={() => setIsProfileOpen(false)} user={currentUser} onLogout={handleLogout} onOpenHistory={() => {setIsProfileOpen(false); setHistoryInitialTab('LIST'); setIsHistoryOpen(true);}} onOpenPayments={() => {setIsProfileOpen(false); setIsPaymentModalOpen(true);}} onOpenSavedPlaces={() => {setIsProfileOpen(false); setIsPlacesModalOpen(true);}} onOpenHelp={() => {setIsProfileOpen(false); setIsHelpModalOpen(true);}} onOpenReports={handleOpenReports} onChangePassword={() => {setIsProfileOpen(false); setIsChangePasswordOpen(true);}} onOpenScheduledRides={() => {setIsProfileOpen(false); setIsScheduledRidesListOpen(true);}} />
+      <ProfileMenu isOpen={isProfileOpen} onClose={() => setIsProfileOpen(false)} user={currentUser} onLogout={handleLogout} onOpenHistory={() => {setIsProfileOpen(false); setHistoryInitialTab('LIST'); setIsHistoryOpen(true);}} onOpenPayments={() => {setIsProfileOpen(false); setIsPaymentModalOpen(true);}} onOpenSavedPlaces={() => {setIsProfileOpen(false); setIsPlacesModalOpen(true);}} onOpenHelp={() => {setIsProfileOpen(false); setIsHelpModalOpen(true);}} onOpenReports={handleOpenReports} onChangePassword={() => {setIsProfileOpen(false); setIsChangePasswordOpen(true);}} onOpenScheduledRides={() => {setIsProfileOpen(false); setIsScheduledRidesListOpen(true);}} onRequestPermissions={handlePermissionsAccept} riderStats={currentUser.role === UserRole.RIDER ? { todayAmount: `$${tripHistory.length > 0 ? (tripHistory.length * 5).toFixed(2) : '0.00'}`, todayDeltaLabel: '+5% vs ayer', tripsThisWeek: tripHistory.length || 0, tier: 'Gold', tierStatus: 'Estable' } : undefined} />
 
 
 

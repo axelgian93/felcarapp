@@ -1,7 +1,7 @@
 import express, { Request, Response, NextFunction } from 'express';
 import cors from 'cors';
 import { randomUUID } from 'crypto';
-import pino from 'pino';
+import pino, { StreamEntry } from 'pino';
 import pinoHttp from 'pino-http';
 import client from 'prom-client';
 
@@ -22,10 +22,23 @@ interface EtaResponse {
   confidence: number;
   source: 'default' | 'fleet' | 'historic' | 'blended' | 'external';
   routeGeoJson?: any;
+  routeMs?: number;
+  totalMs?: number;
+  routeCacheHit?: boolean;
+  routeInflightHit?: boolean;
 }
 
-// Logger
-const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
+// Logger (stdout + file)
+const logDestinations: StreamEntry[] = [
+  { stream: process.stdout },
+];
+const logFilePath = process.env.LOG_FILE || '/var/log/eta/eta.log';
+try {
+  logDestinations.push({ stream: pino.destination({ dest: logFilePath, sync: false }) as any });
+} catch (e) {
+  // If file destination fails, keep stdout logging.
+}
+const logger = pino({ level: process.env.LOG_LEVEL || 'info' }, pino.multistream(logDestinations));
 
 // Metrics
 const register = new client.Registry();
@@ -76,6 +89,7 @@ app.use(pinoHttp({ logger }));
 
 const PORT = process.env.PORT || 8788;
 const OSRM_BASE = (process.env.OSRM_URL || 'http://localhost:5000').replace(/\/$/, '');
+const OSRM_WARMUP_URL = `${OSRM_BASE}/route/v1/driving/-79.8891,-2.1894;-79.8891,-2.1894?overview=false`;
 
 // Default speeds by mode (km/h) used while no telemetry service exists.
 const DEFAULT_SPEEDS: Record<Mode, number> = {
@@ -86,8 +100,9 @@ const DEFAULT_SPEEDS: Record<Mode, number> = {
 
 // Simple in-memory cache for recent OSRM/ETA lookups to reduce churn.
 type CacheEntry<T> = { value: T; expires: number };
-const routeCache = new Map<string, CacheEntry<{ distanceKm: number; geometry: any }>>();
+const routeCache = new Map<string, CacheEntry<{ distanceKm: number; geometry: any; osrmMs: number }>>();
 const etaCache = new Map<string, CacheEntry<EtaResponse>>();
+const routeInflight = new Map<string, Promise<{ distanceKm: number; geometry: any; osrmMs: number }>>();
 const CACHE_TTL_MS = 15_000; // 15s suited for moving vehicles
 
 const now = () => Date.now();
@@ -111,25 +126,42 @@ async function getRoute(startLat: number, startLng: number, endLat: number, endL
   const cached = routeCache.get(key);
   if (cached && cached.expires > now()) {
     cacheHits.inc({ cache: 'route' });
-    return cached.value;
+    return { ...cached.value, cacheHit: true, inflight: false };
+  }
+  const inflight = routeInflight.get(key);
+  if (inflight) {
+    cacheHits.inc({ cache: 'route' });
+    const value = await inflight;
+    return { ...value, cacheHit: false, inflight: true };
   }
   cacheMiss.inc({ cache: 'route' });
 
-  const startOsrm = process.hrtime.bigint();
-  const url = `${OSRM_BASE}/route/v1/driving/${startLng},${startLat};${endLng},${endLat}?overview=full&geometries=geojson`;
-  const resp = await fetch(url);
-  if (!resp.ok) throw new Error(`OSRM error ${resp.status}`);
-  const data = await resp.json();
-  if (data.code !== 'Ok' || !data.routes?.[0]) throw new Error('OSRM no route');
-  const route = data.routes[0];
-  const value = {
-    distanceKm: route.distance / 1000,
-    geometry: route.geometry,
-  };
-  const dur = Number(process.hrtime.bigint() - startOsrm) / 1e9;
-  osrmDuration.observe({ route: 'route' }, dur);
-  routeCache.set(key, { value, expires: now() + CACHE_TTL_MS });
-  return value;
+  const pending = (async () => {
+    const startOsrm = process.hrtime.bigint();
+    const url = `${OSRM_BASE}/route/v1/driving/${startLng},${startLat};${endLng},${endLat}?overview=full&geometries=geojson`;
+    const resp = await fetch(url);
+    if (!resp.ok) throw new Error(`OSRM error ${resp.status}`);
+    const data = await resp.json();
+    if (data.code !== 'Ok' || !data.routes?.[0]) throw new Error('OSRM no route');
+    const route = data.routes[0];
+    const dur = Number(process.hrtime.bigint() - startOsrm) / 1e9;
+    const value = {
+      distanceKm: route.distance / 1000,
+      geometry: route.geometry,
+      osrmMs: Math.round(dur * 1000),
+    };
+    osrmDuration.observe({ route: 'route' }, dur);
+    routeCache.set(key, { value, expires: now() + CACHE_TTL_MS });
+    return value;
+  })();
+
+  routeInflight.set(key, pending);
+  try {
+    const value = await pending;
+    return { ...value, cacheHit: false, inflight: false };
+  } finally {
+    routeInflight.delete(key);
+  }
 }
 
 app.post('/eta', async (req: Request, res: Response) => {
@@ -151,7 +183,7 @@ app.post('/eta', async (req: Request, res: Response) => {
     cacheMiss.inc({ cache: 'eta' });
     const start = process.hrtime.bigint();
 
-    const [{ distanceKm, geometry }, speedInfo] = await Promise.all([
+    const [{ distanceKm, geometry, osrmMs, cacheHit, inflight }, speedInfo] = await Promise.all([
       getRoute(startLat, startLng, endLat, endLng),
       getEffectiveSpeedKph(mode),
     ]);
@@ -159,18 +191,30 @@ app.post('/eta', async (req: Request, res: Response) => {
     const etaHours = distanceKm / Math.max(speedInfo.kph, 5);
     const etaMinutes = Math.round(etaHours * 60 + 2); // +2 min buffer
 
+    const dur = Number(process.hrtime.bigint() - start) / 1e9;
+
     const response: EtaResponse = {
       distanceKm: Number(distanceKm.toFixed(2)),
       etaMinutes,
       confidence: speedInfo.confidence,
       source: speedInfo.source,
       routeGeoJson: geometry,
+      routeMs: osrmMs,
+      totalMs: Math.round(dur * 1000),
+      routeCacheHit: cacheHit,
+      routeInflightHit: inflight,
     };
 
     etaCache.set(cacheKey, { value: response, expires: now() + CACHE_TTL_MS });
-    const dur = Number(process.hrtime.bigint() - start) / 1e9;
     httpDuration.observe({ route: 'eta' }, dur);
     httpCounter.inc({ route: 'eta', method: 'POST', status: '200' });
+    logger.info({
+      reqId: (req as any).id,
+      routeMs: osrmMs,
+      totalMs: Math.round(dur * 1000),
+      routeCacheHit: cacheHit,
+      routeInflightHit: inflight,
+    }, 'ETA timing');
     return res.json(response);
   } catch (err: any) {
     httpCounter.inc({ route: 'eta', method: 'POST', status: '500' });
@@ -181,8 +225,7 @@ app.post('/eta', async (req: Request, res: Response) => {
 
 app.get('/health', async (_req, res) => {
   try {
-    const testUrl = `${OSRM_BASE}/route/v1/driving/-79.8891,-2.1894;-79.8891,-2.1894?overview=false`;
-    const r = await fetch(testUrl, { method: 'GET' });
+    const r = await fetch(OSRM_WARMUP_URL, { method: 'GET' });
     const ok = r.ok;
     return res.json({ ok, osrm: ok ? 'up' : 'down' });
   } catch (e) {
@@ -195,4 +238,16 @@ app.get('/metrics', async (_req, res) => {
   res.send(await register.metrics());
 });
 
-app.listen(PORT, () => console.log(`ETA service running on :${PORT} using OSRM ${OSRM_BASE}`));
+const warmupOsrm = async () => {
+  try {
+    await fetch(OSRM_WARMUP_URL, { method: 'GET' });
+  } catch (e) {
+    // Silent warmup failure, OSRM might still be starting.
+  }
+};
+
+app.listen(PORT, () => {
+  console.log(`ETA service running on :${PORT} using OSRM ${OSRM_BASE}`);
+  setTimeout(warmupOsrm, 3000);
+  setInterval(warmupOsrm, 10 * 60 * 1000);
+});

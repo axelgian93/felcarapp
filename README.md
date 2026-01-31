@@ -1,106 +1,136 @@
-﻿# ðŸš– FelcarRide - Ecosistema de Transporte Inteligente
+# FelcarRide � M�dulos por rol (MVP)
 
-FelcarRide es una plataforma de movilidad de Ãºltima generaciÃ³n diseÃ±ada para el mercado ecuatoriano (enfocada inicialmente en Guayaquil). A diferencia de las apps de taxi tradicionales, FelcarRide integra Inteligencia Artificial para la estimaciÃ³n dinÃ¡mica de tarifas y una arquitectura multi-inquilino (multi-tenant) que permite a diferentes cooperativas gestionar su propia flota y reglas de negocio.
+Este README describe qu� hace cada m�dulo del proyecto, organizado por rol.
 
-## ðŸš€ CaracterÃ­sticas Principales
-
-### ðŸ¤– Inteligencia Artificial (Google Gemini)
-- **EstimaciÃ³n DinÃ¡mica:** CÃ¡lculo de tarifas en tiempo real basado en trÃ¡fico, demanda y tipo de servicio (EconÃ³mico, Confort, XL).
-- **Rutas Inteligentes:** OptimizaciÃ³n de puntos de recogida y destinos mediante procesamiento de lenguaje natural.
-
-### ðŸ¢ Arquitectura Multi-Tenant (Cooperativas)
-- **GestiÃ³n Independiente:** Cada cooperativa tiene su propio cÃ³digo de invitaciÃ³n, reglas de precios y panel administrativo.
-- **Comisiones Flexibles:** ConfiguraciÃ³n de porcentajes de ganancia personalizados por grupo.
-
-### ðŸ’¼ MÃ³dulo B2B (Corporativo)
-- **CrÃ©dito Empresarial:** Permite a empresas (ej. El Rosado, Banco del PacÃ­fico) ofrecer transporte a sus empleados con facturaciÃ³n mensual.
-- **LÃ­mites de Consumo:** Control de presupuesto por empresa y seguimiento de rutas corporativas.
-
-### ðŸ“± Experiencia de Usuario (Rider & Driver)
-- **Real-time Tracking:** Mapas interactivos con Leaflet.js.
-- **Seguridad:** CÃ³digos OTP para inicio de viajes y botÃ³n de pÃ¡nico SOS.
-- **Multiplataforma:** Web App optimizada y lista para Android/iOS mediante Capacitor.
-
-## ðŸ›  Stack TecnolÃ³gico
-
-- **Frontend:** React 19 + TypeScript + Tailwind CSS.
-- **Build Tool:** Vite.
-- **Base de Datos & Auth:** Firebase (Firestore & Authentication).
-- **IA:** Google Gemini API (@google/genai).
-- **Mapas:** Leaflet.js + OpenStreetMap (OSRM para rutas).
-- **Mobile:** Ionic Capacitor.
+## Roles
+- **Pasajero (Rider)**
+- **Conductor (Driver)**
+- **Admin de cooperativa (Admin)**
+- **Super Admin (SuperAdmin)**
 
 ---
-Desarrollado con â¤ï¸ para el futuro de la movilidad en Ecuador.
 
+## Pasajero (Rider)
 
-felcar-ride/
-â”œâ”€â”€ components/           # AquÃ­ van: MapBackground.tsx, AuthScreen.tsx, etc.
-â”œâ”€â”€ src/
-â”‚   â”œâ”€â”€ context/          # ThemeContext.tsx
-â”‚   â”œâ”€â”€ services/         # authService.ts, tripService.ts, etc.
-â”‚   â”œâ”€â”€ firebaseConfig.ts
-â”‚   â””â”€â”€ mockData.ts
-â”œâ”€â”€ services/             # geminiService.ts
-â”œâ”€â”€ App.tsx
-â”œâ”€â”€ index.tsx
-â”œâ”€â”€ types.ts
-â”œâ”€â”€ index.html
-â”œâ”€â”€ package.json
-â”œâ”€â”€ tsconfig.json
-â”œâ”€â”€ vite.config.ts
-â”œâ”€â”€ capacitor.config.ts
-â””â”€â”€ .env                  # Muy importante
+**Flujo principal (App.tsx)**
+- **Solicitud de viaje:** selecci�n de origen/destino, tipo de servicio, ETA, confirmaci�n.
+- **Seguimiento del viaje:** estado, conductor asignado, progreso y acciones.
+- **Permisos de la app:** modal inicial para GPS, notificaciones, c�mara y galer�a.
+- **Tema (dark/light):** bot�n en men� de usuario.
 
-## ConfiguraciÃ³n de entorno (.env)
-- Copia `.env.example` a `.env` y completa las variables `VITE_FIREBASE_*` y `VITE_GEMINI_API_KEY`.
-- Para producciÃ³n, mueve la clave de Gemini a un backend/proxy para evitar exponerla en el cliente.
-- Opcional: si ejecutas el proxy de Gemini, define `VITE_GEMINI_PROXY_URL` (ej. `http://localhost:8787`).
-- Para rutas, puedes usar tu propio OSRM: define `VITE_OSRM_URL` (ej. `http://localhost:5000`). Si no se define, se usa el demo pÃºblico de OSRM.
-- ETA desde microservicio: define `VITE_ETA_URL` (ej. `http://localhost:8788`).
+**M�dulos UI (components/)**
+- **AuthScreen:** login/registro/recuperaci�n de contrase�a.
+- **MapBackground:** mapa, rutas, marcadores y ETA.
+- **SavedPlacesModal:** gesti�n de lugares guardados.
+- **ScheduledRidesModal:** viajes reservados y cancelaci�n.
+- **TripHistory:** historial de viajes del usuario.
+- **PaymentMethodsModal:** m�todos de pago y cr�dito corporativo.
+- **HelpCenterModal:** ayuda y soporte.
+- **NotificationsModal:** notificaciones de la cuenta.
+- **RatingModal:** calificaci�n del viaje.
+- **CancellationModal:** cancelaci�n de viaje con motivo.
+- **ChatWindow:** chat entre pasajero y conductor.
+- **ProfileMenu:** men� lateral con accesos, preferencias y permisos.
 
-## Frontend en Docker
-- Compose en `./docker/docker-compose.yml` (stack `taxiappFelcar`).
-- Imagen multi-stage: construye con Node y sirve con Nginx (ver `Dockerfile` y `docker/nginx/default.conf`).
-- Para levantar solo el frontend: desde `docker/` ejecutar `docker compose up app`.
-- La app expone el puerto `80` del contenedor al `80` del host (ajusta en compose si necesitas otro).
+---
 
-## Microservicio ETA (backend)
-- Archivo: `server/eta-service.ts`. Calcula ETA usando OSRM para la ruta y velocidades por defecto (placeholder para velocidades de flota).
-- Variable: `OSRM_URL` (por defecto `http://localhost:5000`). Puerto por defecto del servicio: `8788`.
-- Correr en dev: `npm run eta`. Endpoint: `POST /eta` con `{ startLat, startLng, endLat, endLng, mode? }` â†’ `{ distanceKm, etaMinutes, confidence, source, routeGeoJson }`.
-- En futuro se puede conectar a Redis/DB para usar velocidades de la flota (ver `server/eta-service-spec.md`).
-- Cache: el servicio ETA usa cachÃ© in-memory de 15s para rutas/ETA para reducir llamadas a OSRM. `/health` verifica conectividad a OSRM.
+## Conductor (Driver)
 
-## Proxy Gemini (servidor opcional)
-- Archivo: `server/gemini-proxy.ts` (Express). Requiere `GEMINI_API_KEY` en variables de entorno.
-- Ejecuta con: `npm run proxy` (usa ts-node) despuÃ©s de exportar `GEMINI_API_KEY` y opcional `PORT`.
-- El frontend usarÃ¡ automÃ¡ticamente el proxy si `VITE_GEMINI_PROXY_URL` estÃ¡ configurado (por defecto `http://localhost:8787`); con ello ya no se envÃ­a la clave al cliente.
+**Flujo principal (App.tsx)**
+- **Panel de conductor:** estado en l�nea/offline, info del veh�culo y solicitudes.
+- **Confirmaci�n de inicio (OTP):** inicio de viaje con PIN.
 
-## Servidor OSRM propio (ruteo)
-- Requisitos: Docker y un archivo PBF (ej. `ecuador-latest.osm.pbf` de Geofabrik).
-- Carpeta Docker: `./docker/`. El volumen de datos est? en `./docker/osrm-data/`.
-- Descarga del PBF con script de ayuda (PowerShell): `powershell -ExecutionPolicy Bypass -File ./scripts/osrm-fetch.ps1` (usa Ecuador por defecto). Para otro mapa: `... -Url "https://download.geofabrik.de/south-america/peru-latest.osm.pbf"`.
-- Levanta desde la carpeta `docker/`: `cd docker && docker compose up osrm` (usa `docker/docker-compose.yml`). Esto corre `extract/partition/customize` y expone `:5000`.
-- Configura `VITE_OSRM_URL=http://localhost:5000` (o la IP/puerto donde lo despliegues).
-- Si no defines la variable, el frontend usar? el demo p?blico `https://router.project-osrm.org` como fallback.
+**M�dulos UI (components/)**
+- **DriverEarningsModal:** ganancias, historial de pagos y horas conectadas.
+- **MapBackground:** vista de ruta y tracking.
+- **ChatWindow:** mensajer�a con el pasajero.
+- **ProfileMenu:** datos personales, veh�culo, documentos y preferencias.
 
-## Observabilidad
-- Prometheus + Grafana en ./docker/docker-compose.yml (puertos 9090 y 3000; Grafana admin: felcar123).
-- Scrapes: eta:8788, proxy:8787, osrm:5000 (smoke), pp:80 (/health en Nginx). Alertas en docker/prometheus/alerts.yml (error rate >2%, p90 >1s, uptime).
-- Dashboard base: docker/grafana/provisioning/dashboards/json/felcar-observability.json (ETA y proxy: p50/p90/p99 y RPS).
-- Logging JSON con pino en proxy y ETA; /metrics y /health en ambos. Nginx access log en JSON.
+---
 
-## Seguridad
-- Secretos (Gemini, URLs) en variables de entorno; .dockerignore excluye .env del build para no hornear claves.
-- Imágenes finales usan COPY sin montar el repo completo; en producción evita volúmenes con el código fuente.
+## Admin de cooperativa (Admin)
 
-## Mantenimiento OSRM (datos frescos)
-- Refresca semanalmente: powershell -ExecutionPolicy Bypass -File ./scripts/osrm-refresh.ps1 (descarga último PBF de Ecuador, limpia .osrm y recrea el servicio osrm).
-- Puedes agendarlo con el Programador de Tareas de Windows para ejecutarlo 1 vez por semana.
+**Panel principal (components/AdminPanel.tsx)**
+- **Gesti�n de clientes (riders):** estado, edici�n y bloqueo.
+- **Gesti�n de conductores:** estado, edici�n y bloqueo.
+- **Empresas (B2B):** administraci�n de cuentas corporativas.
+- **Finanzas:** m�tricas generales y comisiones.
+- **Soporte:** tickets y acciones r�pidas.
+- **Reportes:** KPIs y actividad.
+- **Tarifas propias:** configuraci�n por cooperativa.
+- **Cambiar clave (rider/driver de su cooperativa):** modal de reseteo.
+- **Tema dark/light:** bot�n en el men�.
 
-## OSRM en alta disponibilidad
-- En docker-compose.yml hay dos instancias osrm-a y osrm-b balanceadas por osrm-lb (Nginx) que expone :5000.
-- Levanta con: cd docker && docker compose up osrm-a osrm-b osrm-lb.
-- Usa VITE_OSRM_URL y OSRM_URL apuntando a http://localhost:5000 para que pasen por el balanceador.
-- Para refrescar datos sin downtime: drena una instancia (stop osrm-a), corre osrm-refresh.ps1 o recrea solo ese servicio, luego repite con la otra.
+**M�dulos por familia (components/admin/)**
+> Son vistas de UI por familia, con datos mock y acciones simuladas.
+
+### Soporte
+- **AdminSupportDashboard:** tablero de tickets, SLA y acciones r�pidas.
+- **CallCenterDispatchPanel:** panel de despacho y asignaci�n.
+- **CallCenterPerformanceAnalytics:** m�tricas operativas del call center.
+
+### Operaciones / Flota
+- **DriverDashboardModule:** estado operativo de conductores.
+- **DriverTripHistoryModule:** historial y detalle de viajes.
+- **DriverIncentivesTiers:** niveles e incentivos por desempe�o.
+- **DriverQueuePositionModule:** cola y posicionamiento.
+- **DriverReviewsRatingsModule:** ratings y feedback.
+- **FleetInventoryOverviewModule:** inventario de flota.
+- **VehicleDetailsStatusModule:** detalle y estado de veh�culo.
+- **VehicleProfitabilityAnalyticsModule:** rentabilidad por veh�culo.
+- **MaintenanceAlertsPlannerModule:** alertas y planificaci�n de mantenimiento.
+- **MaintenanceLogRemindersModule:** log y recordatorios.
+- **MaintenanceExpenseAnalyticsModule:** costos y tendencias.
+- **DailyVehicleHealthCheckModule:** checklist diario de flota.
+- **ShiftSchedulerModule:** turnos operativos.
+- **TaxiRankQueuesModule:** colas por parada/taxi-rank.
+- **SpeedAlertConfigurationModule:** configuraci�n de alertas de velocidad.
+- **SpeedingViolationsLogModule:** registro de infracciones.
+- **GeofenceAlertDetailModule:** alertas por geocercas.
+- **ZoneGeofencingManagerModule:** gesti�n de geocercas.
+
+### Pasajeros
+- **PassengerRideRequestModule:** solicitud de viaje (UI mock).
+- **PassengerTripTrackingModule:** seguimiento del viaje.
+- **PassengerTripHistoryModule:** historial de pasajero.
+- **PassengerScheduledRideModule:** viajes programados.
+- **PassengerSubscriptionsModule:** suscripciones y planes.
+
+### Anal�tica / Reportes
+- **OperationalReports:** reportes operativos.
+- **WeeklyEarningsSummaryModule:** resumen semanal.
+- **DemandHeatMapModule:** mapa de demanda.
+- **DemandForecastModule:** predicci�n de demanda.
+- **DeliveryPerformanceReportsModule:** rendimiento de entregas.
+- **RouteEfficiencyAnalyticsModule:** eficiencia de rutas.
+- **SuperAdminLiveMonitor:** monitoreo global (si aplica a admin).
+
+### Seguridad / Configuraci�n
+- **PrivacySecuritySettingsModule:** privacidad y seguridad.
+- **AccessibilityInclusionSettingsModule:** accesibilidad e inclusi�n.
+- **DataPermissionsControlModule:** permisos por rol.
+- **SafetyContactsModule:** contactos de seguridad.
+- **BiometricSecuritySetupModule:** biometr�a (mock).
+- **NightModeConfigurationModule:** configuraci�n visual (mock).
+- **AccountRecoveryModule:** recuperaci�n de cuenta.
+
+---
+
+## Super Admin (SuperAdmin)
+
+Adem�s de todo lo anterior, tiene acceso a:
+- **Gesti�n de cooperativas:** alta/edici�n/estado.
+- **Administradores:** gesti�n de admins.
+- **Tarifas globales:** configuraci�n general de precios.
+- **Transferencia de usuarios entre cooperativas.**
+- **Cambiar clave de cualquier rider/driver.**
+
+---
+
+## Notas t�cnicas (MVP)
+- **Datos:** mock + Firebase para auth y perfiles.
+- **Permisos:** modal de permisos + request de GPS/c�mara/galer�a.
+- **Tema:** dark/light con persistencia en localStorage.
+- **Android:** proyecto nativo versionado en `android/` con permisos en manifest.
+
+Si necesitas un mapa de navegaci�n o un demo script, d�melo y lo agrego.

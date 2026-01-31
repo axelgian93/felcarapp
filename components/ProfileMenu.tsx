@@ -54,6 +54,14 @@ interface ProfileMenuProps {
 
 
   onOpenScheduledRides: () => void;
+  onRequestPermissions?: () => void;
+  riderStats?: {
+    todayAmount: string;
+    todayDeltaLabel: string;
+    tripsThisWeek: number;
+    tier: string;
+    tierStatus: string;
+  };
 
 
 }
@@ -98,7 +106,9 @@ export const ProfileMenu: React.FC<ProfileMenuProps> = ({
   onChangePassword,
 
 
-  onOpenScheduledRides
+  onOpenScheduledRides,
+  onRequestPermissions,
+  riderStats
 
 
 }) => {
@@ -288,6 +298,70 @@ export const ProfileMenu: React.FC<ProfileMenuProps> = ({
       </div>
 
 
+
+
+
+      {user.role === UserRole.RIDER && riderStats && (
+
+
+        <div className="px-6 pb-4">
+
+
+          <div className="grid grid-cols-3 gap-3">
+
+
+            <div className="bg-gray-50 dark:bg-slate-800 rounded-2xl p-3 border border-gray-100 dark:border-slate-800">
+
+
+              <div className="text-[10px] text-slate-500 dark:text-slate-400 flex items-center gap-1">Hoy</div>
+
+
+              <div className="text-lg font-bold mt-1">{riderStats.todayAmount}</div>
+
+
+              <p className="text-[10px] text-emerald-500 mt-1">{riderStats.todayDeltaLabel}</p>
+
+
+            </div>
+
+
+            <div className="bg-gray-50 dark:bg-slate-800 rounded-2xl p-3 border border-gray-100 dark:border-slate-800">
+
+
+              <div className="text-[10px] text-slate-500 dark:text-slate-400 flex items-center gap-1">Viajes</div>
+
+
+              <div className="text-lg font-bold mt-1">{riderStats.tripsThisWeek}</div>
+
+
+              <p className="text-[10px] text-slate-400 mt-1">Esta semana</p>
+
+
+            </div>
+
+
+            <div className="bg-gray-50 dark:bg-slate-800 rounded-2xl p-3 border border-gray-100 dark:border-slate-800">
+
+
+              <div className="text-[10px] text-slate-500 dark:text-slate-400 flex items-center gap-1">Nivel</div>
+
+
+              <div className="text-lg font-bold mt-1">{riderStats.tier}</div>
+
+
+              <p className="text-[10px] text-amber-500 mt-1">{riderStats.tierStatus}</p>
+
+
+            </div>
+
+
+          </div>
+
+
+        </div>
+
+
+      )}
 
 
 
@@ -1054,6 +1128,9 @@ export const ProfileMenu: React.FC<ProfileMenuProps> = ({
 
 
       <div className="flex-grow p-4 bg-gray-50 dark:bg-slate-800 space-y-4">
+         {onRequestPermissions && (
+           <button onClick={onRequestPermissions} className="w-full bg-white dark:bg-slate-900 p-4 rounded-xl border border-gray-100 dark:border-slate-800 text-left font-bold text-sm text-gray-900 dark:text-slate-100">Solicitar permisos de la app</button>
+         )}
          <div className="bg-white dark:bg-slate-900 p-4 rounded-xl border border-gray-100 dark:border-slate-800 flex justify-between items-center">
             <span className="font-bold text-sm text-gray-900 dark:text-slate-100">Tema</span>
             <button onClick={toggleTheme} className="px-3 py-1 rounded-full text-xs font-bold border border-gray-200 dark:border-slate-700">

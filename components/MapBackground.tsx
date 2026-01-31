@@ -22,7 +22,9 @@ import { useTheme } from '../src/context/ThemeContext';
 // Base OSRM endpoint: prefer local/proxy if provided, fallback to public demo
 
 
-const OSRM_BASE = ((import.meta.env.VITE_OSRM_URL as string | undefined) ?? '').replace(/\/$/, '') || 'https://router.project-osrm.org';
+const OSRM_BASE = ((import.meta.env.VITE_OSRM_URL as string | undefined) ?? '').replace(/\/$/, '') || 'http://localhost:5000';
+const FALLBACK_OSRM_BASE = 'https://router.project-osrm.org';
+const ETA_BASE = ((import.meta.env.VITE_ETA_URL as string | undefined) ?? '').replace(/\/$/, '') || 'http://localhost:8788';
 
 
 
@@ -323,6 +325,7 @@ export const MapBackground: React.FC<MapBackgroundProps> = ({
 
 
   const routeTooltipRef = useRef<L.Tooltip | null>(null);
+  const routeRequestRef = useRef<{ key: string; controller: AbortController } | null>(null);
 
 
   const driversMarkersRef = useRef<Map<string, L.Marker>>(new Map());
@@ -332,6 +335,18 @@ export const MapBackground: React.FC<MapBackgroundProps> = ({
 
 
   const { theme } = useTheme();
+
+
+
+  const getFitPadding = () => {
+    const side = 48;
+    const top = 64;
+    const bottom = Math.min(280, Math.max(140, uiBottomPadding + 100));
+    return {
+      paddingTopLeft: [side, top] as [number, number],
+      paddingBottomRight: [side, bottom] as [number, number]
+    };
+  };
 
 
 
@@ -475,7 +490,10 @@ export const MapBackground: React.FC<MapBackgroundProps> = ({
       if (mapInstanceRef.current && gpsSignal > 0) {
 
 
-          mapInstanceRef.current.flyTo([userLocation.lat, userLocation.lng], 16, {
+          const map = mapInstanceRef.current;
+
+
+          map.flyTo([userLocation.lat, userLocation.lng], 16, {
 
 
               duration: 1.0,
@@ -487,10 +505,46 @@ export const MapBackground: React.FC<MapBackgroundProps> = ({
           });
 
 
+          if (uiBottomPadding > 0) {
+
+
+              map.once('moveend', () => {
+
+
+                  const size = map.getSize();
+
+
+                  const panelHeight = Math.min(uiBottomPadding, size.y);
+
+
+                  const visibleCenterY = Math.max(0, (size.y - panelHeight) / 2);
+
+
+                  const point = map.latLngToContainerPoint([userLocation.lat, userLocation.lng]);
+
+
+                  const deltaY = point.y - visibleCenterY;
+
+
+                  if (Math.abs(deltaY) > 1) {
+
+
+                      map.panBy([0, deltaY], { animate: true });
+
+
+                  }
+
+
+              });
+
+
+          }
+
+
       }
 
 
-  }, [gpsSignal]);
+  }, [gpsSignal, uiBottomPadding, userLocation.lat, userLocation.lng]);
 
 
 
@@ -506,6 +560,8 @@ export const MapBackground: React.FC<MapBackgroundProps> = ({
 
 
       if (!map || isPickingOnMap) return;
+
+      if (routeLineRef.current) return;
 
 
 
@@ -609,9 +665,8 @@ export const MapBackground: React.FC<MapBackgroundProps> = ({
 
       if (hasPoints && bounds.isValid()) {
 
-
-          map.fitBounds(bounds, { padding: [140, 140], maxZoom: 12, animate: true, duration: 1 });
-
+          const { paddingTopLeft, paddingBottomRight } = getFitPadding();
+          map.fitBounds(bounds, { paddingTopLeft, paddingBottomRight, maxZoom: 15, animate: true, duration: 1 });
 
       }
 
@@ -619,7 +674,7 @@ export const MapBackground: React.FC<MapBackgroundProps> = ({
 
 
 
-  }, [status, assignedDriver?.coords?.lat, assignedDriver?.coords?.lng, pickupLocation, destinationLocation, isPickingOnMap]);
+  }, [status, assignedDriver?.coords?.lat, assignedDriver?.coords?.lng, pickupLocation, destinationLocation, isPickingOnMap, uiBottomPadding]);
 
 
 
@@ -763,7 +818,7 @@ export const MapBackground: React.FC<MapBackgroundProps> = ({
     if (routeStart && routeEnd && !isPickingOnMap) {
 
 
-        drawRoute(map, routeStart, routeEnd, status, theme, routeLineRef, routeTooltipRef, uiBottomPadding);
+        drawRoute(map, routeStart, routeEnd, status, theme, routeLineRef, routeTooltipRef, routeRequestRef, getFitPadding());
 
 
     } else {
@@ -1045,12 +1100,9 @@ async function drawRoute(
 
 
     routeLineRef: React.MutableRefObject<L.Polyline | null>,
-
-
     tooltipRef: React.MutableRefObject<L.Tooltip | null>,
-
-
-    uiBottomPadding: number
+    routeRequestRef: React.MutableRefObject<{ key: string; controller: AbortController } | null>,
+    padding: { paddingTopLeft: [number, number]; paddingBottomRight: [number, number] }
 
 
 ) {
@@ -1060,6 +1112,21 @@ async function drawRoute(
 
 
     if (status === RideStatus.DRIVER_ASSIGNED) lineColor = '#10b981';
+
+    const routeKey = `${start.lat},${start.lng}:${end.lat},${end.lng}:${status}`;
+
+    if (routeRequestRef.current?.key === routeKey && routeLineRef.current) {
+        routeLineRef.current.setStyle({ color: lineColor, weight: 5, dashArray: undefined, opacity: 0.8 });
+        return;
+    }
+
+    if (routeRequestRef.current?.controller) {
+        routeRequestRef.current.controller.abort();
+    }
+
+    const controller = new AbortController();
+    routeRequestRef.current = { key: routeKey, controller };
+    const { signal } = controller;
 
 
 
@@ -1071,7 +1138,7 @@ async function drawRoute(
     const drawFallback = () => {
 
 
-        const paddingBR: [number, number] = [140, 320 + uiBottomPadding];
+        const { paddingTopLeft, paddingBottomRight } = padding;
 
 
         if (routeLineRef.current) {
@@ -1152,7 +1219,7 @@ async function drawRoute(
             const bounds = routeLineRef.current.getBounds().extend([start.lat, start.lng]).extend([end.lat, end.lng]);
 
 
-            map.fitBounds(bounds, { paddingTopLeft: [140, 140], paddingBottomRight: paddingBR, maxZoom: 12 });
+            map.fitBounds(bounds, { paddingTopLeft, paddingBottomRight, maxZoom: 15 });
 
 
         }
@@ -1167,40 +1234,144 @@ async function drawRoute(
     try {
 
 
-        const paddingBR: [number, number] = [140, 320 + uiBottomPadding];
+        const { paddingTopLeft, paddingBottomRight } = padding;
 
 
-        const response = await fetch(`${OSRM_BASE}/route/v1/driving/${start.lng},${start.lat};${end.lng},${end.lat}overview=full&geometries=geojson`);
+        const fetchRoute = async (baseUrl: string) => {
 
 
-        
+            const url = `${baseUrl}/route/v1/driving/${start.lng},${start.lat};${end.lng},${end.lat}?overview=full&geometries=geojson`;
 
 
-        if (!response.ok) throw new Error("Fetch failed");
+            const response = await fetch(url, { signal });
 
 
-        
+            if (!response.ok) throw new Error("Fetch failed");
 
 
-        const data = await response.json();
+            const data = await response.json();
 
 
-        if (data.code !== 'Ok' || !data.routes[0]) throw new Error("No route");
+            if (data.code !== 'Ok' || !data.routes?.[0]?.geometry?.coordinates?.length) {
 
 
+                throw new Error("No route");
 
 
-
-        const route = data.routes[0];
-
-
-        const coords = route.geometry.coordinates.map((c: number[]) => [c[1], c[0]]);
+            }
 
 
-        const distKm = (route.distance / 1000).toFixed(1);
+            return data;
 
 
-        const timeMin = Math.round(route.duration / 60);
+        };
+
+
+        const fetchRouteFromEta = async () => {
+
+
+            const response = await fetch(`${ETA_BASE}/eta`, {
+
+
+                method: 'POST',
+
+
+                headers: { 'Content-Type': 'application/json' },
+                signal,
+
+
+                body: JSON.stringify({
+
+
+                    startLat: start.lat,
+
+
+                    startLng: start.lng,
+
+
+                    endLat: end.lat,
+
+
+                    endLng: end.lng,
+
+
+                    mode: 'car'
+
+
+                })
+
+
+            });
+
+
+            if (!response.ok) throw new Error('ETA route fetch failed');
+
+
+            const data = await response.json();
+
+
+            if (!data?.routeGeoJson?.coordinates?.length) throw new Error('ETA route missing geometry');
+
+
+            return data;
+
+
+        };
+
+
+        let data;
+
+
+        try {
+
+
+            data = await fetchRouteFromEta();
+
+
+        } catch (error) {
+
+            if (signal.aborted) return;
+
+            const allowOsrmDirect = Boolean((import.meta.env.VITE_OSRM_URL as string | undefined) ?? '');
+            if (!allowOsrmDirect) throw error;
+
+            try {
+
+                data = await fetchRoute(OSRM_BASE);
+
+            } catch (fallbackError) {
+
+                if (signal.aborted) return;
+
+                if (OSRM_BASE !== FALLBACK_OSRM_BASE) {
+
+                    data = await fetchRoute(FALLBACK_OSRM_BASE);
+
+                } else {
+
+                    throw fallbackError;
+
+                }
+
+            }
+
+        }
+
+        if (signal.aborted) return;
+
+        const route = data.routes?.[0];
+
+
+        const geometry = route?.geometry || data.routeGeoJson;
+
+
+        const coords = geometry.coordinates.map((c: number[]) => [c[1], c[0]]);
+
+
+        const distKm = ((route?.distance ?? (data.distanceKm ?? 0) * 1000) / 1000).toFixed(1);
+
+
+        const timeMin = Math.round((route?.duration ?? (data.etaMinutes ?? 0) * 60) / 60);
 
 
 
@@ -1269,7 +1440,7 @@ async function drawRoute(
             const bounds = routeLineRef.current.getBounds().extend([start.lat, start.lng]).extend([end.lat, end.lng]);
 
 
-            map.fitBounds(bounds, { paddingTopLeft: [140, 140], paddingBottomRight: paddingBR, maxZoom: 12 });
+            map.fitBounds(bounds, { paddingTopLeft, paddingBottomRight, maxZoom: 15 });
 
 
         }
